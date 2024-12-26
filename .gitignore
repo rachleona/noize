@@ -1,0 +1,6 @@
+.venv
+testing
+src/__pycache__
+src/openvoice/__pycache__
+outputs
+src/openvoice/checkpoints
