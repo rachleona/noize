@@ -2,11 +2,14 @@ import os
 import re
 import soundfile as sf
 import typer
+import warnings
 
 from ov_adapted import extract_se
 from perturb import PerturbationGenerator
 from utils import load_audio, split_audio
 
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", message=".*torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm.*")
 def main(filepath: str, 
          output_dir: str,
          perturbation_level: int = 5, 
@@ -22,6 +25,9 @@ def main(filepath: str,
         learning_rate, 
         iterations)
 
+    # todo prompting?
+    # todo file type check
+    # todo print current task
     src_srs, src_tensor = load_audio(filepath, perturber)
     src_segments = split_audio(src_srs, perturber)
 

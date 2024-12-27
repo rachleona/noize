@@ -5,7 +5,6 @@ import torch
 from utils import cdpam_prep
 from ov_adapted import extract_se, convert
 
-
 class PerturbationGenerator():
     def __init__(self, 
                  perturbation_level, 
@@ -14,12 +13,7 @@ class PerturbationGenerator():
                  learning_rate, 
                  iterations):
         
-        # CDPAM_WEIGHT = 50
-        # DISTANCE_WEIGHT = 2
-        # LEARNING_RATE = 0.02
-        # DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        # ITERATIONS = 500
-        # PERTURBATION_LEVEL = 0.005
+        # todo: dynamic checkpoints folder?
 
         ckpt_converter = 'src/openvoice/checkpoints/converter'
         self.hps = get_hparams_from_file(f'{ckpt_converter}/config.json')
@@ -37,7 +31,9 @@ class PerturbationGenerator():
             n_speakers=self.hps.data.n_speakers,
             **self.hps.model,
         ).to(self.DEVICE)
-        checkpoint_dict = torch.load(f'{ckpt_converter}/checkpoint.pth', map_location=torch.device(self.DEVICE))
+        checkpoint_dict = torch.load(f'{ckpt_converter}/checkpoint.pth', 
+                                     map_location=torch.device(self.DEVICE), 
+                                     weights_only=True)
         self.model.load_state_dict(checkpoint_dict['model'], strict=False)
         self.hann_window = {}
 
@@ -63,6 +59,7 @@ class PerturbationGenerator():
         params.requires_grad_()
         optimizer = torch.optim.Adam([params], lr=self.LEARNING_RATE)
 
+        # todo progress bar
         for _ in range(self.ITERATIONS):
             optimizer.zero_grad()
             loss = function(params)
