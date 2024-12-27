@@ -1,6 +1,8 @@
 import librosa
 import torch
+
 from faster_whisper import WhisperModel
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # adapted from split_audio_whisper from openvoice
 # processes waveform tensors directly instead of using files
@@ -65,3 +67,16 @@ def load_audio(filename, perturber):
     tensor = torch.from_numpy(srs).to(perturber.DEVICE)
 
     return srs, tensor
+
+def with_spinner(desc, func, *args):
+    res = None
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        progress.add_task(description=desc, total=None)
+        res = func(*args)
+        
+    return res

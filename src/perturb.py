@@ -1,9 +1,11 @@
 import cdpam
-from openvoice.utils import get_hparams_from_file
-from openvoice.models import SynthesizerTrn
 import torch
-from utils import cdpam_prep
+
+from openvoice.models import SynthesizerTrn
+from openvoice.utils import get_hparams_from_file
 from ov_adapted import extract_se, convert
+from rich.progress import track
+from utils import cdpam_prep
 
 class PerturbationGenerator():
     def __init__(self, 
@@ -54,13 +56,12 @@ class PerturbationGenerator():
 
         return loss, source_se
         
-    def minimize(self, function, initial_parameters):
+    def minimize(self, function, initial_parameters, segment_num):
         params = initial_parameters
         params.requires_grad_()
         optimizer = torch.optim.Adam([params], lr=self.LEARNING_RATE)
 
-        # todo progress bar
-        for _ in range(self.ITERATIONS):
+        for _ in track(range(self.ITERATIONS), description=f"Processing segment {segment_num}"):
             optimizer.zero_grad()
             loss = function(params)
             loss.backward()
@@ -78,7 +79,7 @@ class PerturbationGenerator():
             initial_params = padding(target_segment) - segment['tensor']
             # initial_params = 1e-5 * torch.ones(segment['tensor'].shape).to(DEVICE)
             
-            perturbation = self.minimize(loss_f, initial_params)
+            perturbation = self.minimize(loss_f, initial_params, segment['id'])
             padding = torch.nn.ZeroPad1d((segment['start'], max(0, l - segment['end'])))
             padded = padding(perturbation.detach())
             total_perturbation += padded[:l]
