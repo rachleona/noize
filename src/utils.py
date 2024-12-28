@@ -80,3 +80,9 @@ def with_spinner(desc, func, *args):
         res = func(*args)
         
     return res
+
+def choose_target(src_se, voices):
+    diff = voices - src_se
+    s = torch.sum(diff ** 2, 2)
+    i = torch.argmax(s)
+    return voices[i]
