@@ -10,18 +10,15 @@ from rich.progress import track
 from utils import cdpam_prep, choose_target
 
 class PerturbationGenerator():
-    def __init__(self, 
+    def __init__(self,
+                 config_file,
                  perturbation_level, 
                  cdpam_weight, 
                  distance_weight, 
                  learning_rate, 
                  iterations):
         
-        # todo: dynamic checkpoints folder? or config file?
-
-        ckpt_converter = 'src/openvoice/checkpoints/converter'
-        voice_bank_dir = 'checkpoints'
-        self.hps = get_hparams_from_file(os.path.join(ckpt_converter, 'config.json'))
+        self.hps = get_hparams_from_file(config_file)
 
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
@@ -37,12 +34,13 @@ class PerturbationGenerator():
             **self.hps.model,
         ).to(self.DEVICE)
 
-        checkpoint_dict = torch.load(os.path.join(ckpt_converter, 'checkpoint.pth'), 
+        checkpoint_dict = torch.load(os.path.join(self.hps.paths_location, 'checkpoint.pth'), 
                                      map_location=torch.device(self.DEVICE), 
                                      weights_only=True)
         self.model.load_state_dict(checkpoint_dict['model'], strict=False)
         self.hann_window = {}
 
+        voice_bank_dir = os.path.join(self.hps.paths_location, "voices", "*.wav")
         files = glob(voice_bank_dir)
         self.voices = torch.zeros(len(files), 1, 256, 1)
         for k,v in enumerate(files):

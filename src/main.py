@@ -7,28 +7,31 @@ import warnings
 from pathlib import Path
 from perturb import PerturbationGenerator
 from rich import print
+from typing import Optional
 from typing_extensions import Annotated
 from utils import load_audio, split_audio, with_spinner
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm.*")
-def main(filepath: Annotated[Path, typer.Argument()] = None, 
-         output_dir: Annotated[str, typer.Argument()] = None, 
-         perturbation_level: int = 5, 
-         c_weight: int = 50, 
-         d_weight: int = 2, 
-         learning_rate: float = 0.02, 
+
+def main(filepath: Annotated[Path, typer.Argument()] = None,
+         output_dir: Annotated[str, typer.Argument()] = None,
+         config_file: Annotated[Optional[Path], typer.Option()] = "config.json",
+         perturbation_level: int = 5,
+         c_weight: int = 50,
+         d_weight: int = 2,
+         learning_rate: float = 0.02,
          iterations: int = 500):
 
     # todo error reporting
-
     perturber = with_spinner("Initialising perturbation generator...",
                              PerturbationGenerator,
+                             config_file,
                              perturbation_level / 1000,
                              c_weight,
                              d_weight,
                              learning_rate,
-                             iterations)
+                             iterations,)
 
     if filepath is None:
         filepath = typer.prompt("Path of audio file to be protected")
