@@ -1,12 +1,12 @@
 import torch
 
 def extract_se(audio_ref_tensor, perturber):
-    hps = perturber.hps
+    dps = perturber.data_params
     y = audio_ref_tensor.unsqueeze(0)
     y = spectrogram_torch(y, 
-                          hps.data.filter_length,
-                          hps.data.hop_length, 
-                          hps.data.win_length,
+                          dps.filter_length,
+                          dps.hop_length, 
+                          dps.win_length,
                           perturber.hann_window,
                           center=False).to(perturber.DEVICE)
     
@@ -15,12 +15,12 @@ def extract_se(audio_ref_tensor, perturber):
     return g
 
 def convert(y, src_se, tgt_se, perturber):
-    hps = perturber.hps
+    dps = perturber.data_params
     device = perturber.DEVICE
 
     y = y.unsqueeze(0)
-    spec = spectrogram_torch(y, hps.data.filter_length,
-                            hps.data.hop_length, hps.data.win_length,
+    spec = spectrogram_torch(y, dps.filter_length,
+                            dps.hop_length, dps.win_length,
                             perturber.hann_window,
                             center=False).to(device)
     spec_lengths = torch.LongTensor([spec.size(-1)]).to(device)

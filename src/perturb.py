@@ -2,14 +2,14 @@ import cdpam
 import os
 import torch
 
+from cli import warn
 from glob import glob
 from openvoice.models import SynthesizerTrn
-from openvoice.utils import get_hparams_from_file
 from ov_adapted import extract_se, convert
 from rich.progress import track
-from utils import cdpam_prep, choose_target
+from utils import cdpam_prep, choose_target, get_hparams_from_file, ConfigError
 
-class PerturbationGenerator():
+class PerturbationGenerator:
     def __init__(self,
                  config_file,
                  perturbation_level, 
@@ -18,7 +18,11 @@ class PerturbationGenerator():
                  learning_rate, 
                  iterations):
         
-        self.hps = get_hparams_from_file(config_file)
+        data_params, model_params, pths_location, misc = get_hparams_from_file(config_file)
+        self.data_params = data_params
+        self.model_params = model_params
+        self.pths_location = pths_location
+        self.misc_config = misc
 
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
@@ -28,23 +32,33 @@ class PerturbationGenerator():
         self.ITERATIONS = iterations
         
         self.model = SynthesizerTrn(
-            len(getattr(self.hps, 'symbols', [])),
-            self.hps.data.filter_length // 2 + 1,
-            n_speakers=self.hps.data.n_speakers,
-            **self.hps.model,
+            len(getattr(misc, 'symbols', [])),
+            data_params.filter_length // 2 + 1,
+            n_speakers=data_params.n_speakers,
+            **model_params,
         ).to(self.DEVICE)
-
-        checkpoint_dict = torch.load(os.path.join(self.hps.paths_location, 'checkpoint.pth'), 
+        try: 
+            checkpoint_dict = torch.load(os.path.join(pths_location, 'checkpoint.pth'), 
                                      map_location=torch.device(self.DEVICE), 
                                      weights_only=True)
+        except FileNotFoundError:
+            raise ConfigError('Cannot find checkpoint tensor in directory given in config file')
+        
         self.model.load_state_dict(checkpoint_dict['model'], strict=False)
         self.hann_window = {}
 
-        voice_bank_dir = os.path.join(self.hps.paths_location, "voices", "*.wav")
+        voice_bank_dir = os.path.join(pths_location, "voices", "*.pth")
         files = glob(voice_bank_dir)
-        self.voices = torch.zeros(len(files), 1, 256, 1)
+
+        if len(files) == 0:
+            warn('No reference voice tensors found in tensors directory given in config file')
+        
+        self.voices = torch.zeros(max(1, len(files)), 1, 256, 1).to(self.DEVICE)
         for k,v in enumerate(files):
-            se =torch.load(v, map_location=torch.device(self.DEVICE), weights_only=True)
+            se = torch.load(v, map_location=torch.device(self.DEVICE), weights_only=True)
+            if not torch.is_tensor(se) or se.shape != torch.Size((1,256,1)):
+                warn(f'Data loaded from {v} is not a valid voice tensor')
+                continue
             self.voices[k] += se
 
     def generate_loss_function(self, src):

@@ -1,14 +1,13 @@
-import librosa
+import json
 import torch
 
+from openvoice.utils import HParams
+from pathlib import Path
 from faster_whisper import WhisperModel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # adapted from split_audio_whisper from openvoice
 # processes waveform tensors directly instead of using files
-def split_audio(audio_srs, perturber):
-    device = perturber.DEVICE
-    sampling_rate = perturber.hps.data.sampling_rate
+def split_audio(audio_srs, device, sampling_rate):
     sr_constant = sampling_rate / 1000
 
     if device == "cpu": 
@@ -62,27 +61,65 @@ def cdpam_prep(audio):
     audio = torch.reshape(audio, (1, shape[0]))
     return audio
 
-def load_audio(filename, perturber):
-    srs, _ = librosa.load(filename, sr=perturber.hps.data.sampling_rate)
-    tensor = torch.from_numpy(srs).to(perturber.DEVICE)
-
-    return srs, tensor
-
-def with_spinner(desc, func, *args):
-    res = None
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task(description=desc, total=None)
-        res = func(*args)
-        
-    return res
-
 def choose_target(src_se, voices):
     diff = voices - src_se
     s = torch.sum(diff ** 2, 2)
     i = torch.argmax(s)
     return voices[i]
+
+def dict_has_keys(d, *args):
+    if not isinstance(d, dict):
+        return False
+    
+    for arg in args:
+        if arg in d:
+            continue
+        else: return False
+    return True
+
+class ConfigError(Exception):
+    def __init__(self, message, *args):
+        super().__init__(*args)
+        self.message = message
+
+def get_hparams_from_file(config_path):
+    with open(config_path, "r", encoding="utf-8") as f:
+        data = f.read()
+    config = json.loads(data)
+
+    if not dict_has_keys(config, 'data', 'model', 'pths_location'):
+        #error
+        raise ConfigError('Config file does not contain key sections')
+    
+    if not dict_has_keys(config['data'], 'sampling_rate', 'filter_length', 'hop_length', 'win_length', 'n_speakers'):
+        raise ConfigError('Data config is missing key entries')
+    
+    if not dict_has_keys(config['model'],
+                         'zero_g',
+                         'inter_channels',
+                         'hidden_channels',
+                         'filter_channels',
+                         'n_heads',
+                         'n_layers',
+                         'kernel_size',
+                         'p_dropout',
+                         'resblock',
+                         'resblock_kernel_sizes',
+                         'resblock_dilation_sizes',
+                         'upsample_rates',
+                         'upsample_initial_channel',
+                         'upsample_kernel_sizes',
+                         'gin_channels'):
+        raise ConfigError('Model config is missing key entries')
+
+    data_params = HParams(**config['data'])
+    model_params = HParams(**config['model'])
+    pths_location = Path(config['pths_location'])
+    rest = {key: val for key, 
+            val in config.items() if key != 'data' and key != 'model' and key != 'pths_location'}
+    misc_config = HParams(**rest)
+
+    if not pths_location.exists():
+        return ConfigError('Constant tensors directory not found')
+
+    return data_params, model_params, pths_location, misc_config

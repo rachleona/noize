@@ -54,5 +54,5 @@
       ],
       "gin_channels": 256
     },
-    "paths_location": "misc"
+    "pths_location": "misc"
   }
