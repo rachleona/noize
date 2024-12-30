@@ -9,6 +9,7 @@ from openvoice.commons import init_weights, get_padding, fused_add_tanh_sigmoid_
 
 LRELU_SLOPE = 0.1
 
+
 class WN(torch.nn.Module):
     def __init__(
         self,
@@ -36,7 +37,9 @@ class WN(torch.nn.Module):
             cond_layer = torch.nn.Conv1d(
                 gin_channels, 2 * hidden_channels * n_layers, 1
             )
-            self.cond_layer = torch.nn.utils.parametrizations.weight_norm(cond_layer, name="weight")
+            self.cond_layer = torch.nn.utils.parametrizations.weight_norm(
+                cond_layer, name="weight"
+            )
 
         for i in range(n_layers):
             dilation = dilation_rate**i
@@ -48,7 +51,9 @@ class WN(torch.nn.Module):
                 dilation=dilation,
                 padding=padding,
             )
-            in_layer = torch.nn.utils.parametrizations.weight_norm(in_layer, name="weight")
+            in_layer = torch.nn.utils.parametrizations.weight_norm(
+                in_layer, name="weight"
+            )
             self.in_layers.append(in_layer)
 
             # last one is not necessary
@@ -58,7 +63,9 @@ class WN(torch.nn.Module):
                 res_skip_channels = hidden_channels
 
             res_skip_layer = torch.nn.Conv1d(hidden_channels, res_skip_channels, 1)
-            res_skip_layer = torch.nn.utils.parametrizations.weight_norm(res_skip_layer, name="weight")
+            res_skip_layer = torch.nn.utils.parametrizations.weight_norm(
+                res_skip_layer, name="weight"
+            )
             self.res_skip_layers.append(res_skip_layer)
 
     def forward(self, x, x_mask, g=None, **kwargs):
@@ -95,6 +102,7 @@ class WN(torch.nn.Module):
             torch.nn.utils.remove_weight_norm(l)
         for l in self.res_skip_layers:
             torch.nn.utils.remove_weight_norm(l)
+
 
 class ResBlock1(torch.nn.Module):
     def __init__(self, channels, kernel_size=3, dilation=(1, 3, 5)):
@@ -192,6 +200,7 @@ class ResBlock1(torch.nn.Module):
         for l in self.convs2:
             remove_weight_norm(l)
 
+
 class ResBlock2(torch.nn.Module):
     def __init__(self, channels, kernel_size=3, dilation=(1, 3)):
         super(ResBlock2, self).__init__()
@@ -236,6 +245,7 @@ class ResBlock2(torch.nn.Module):
         for l in self.convs:
             remove_weight_norm(l)
 
+
 class Flip(nn.Module):
     def forward(self, x, *args, reverse=False, **kwargs):
         x = torch.flip(x, [1])
@@ -244,6 +254,7 @@ class Flip(nn.Module):
             return x, logdet
         else:
             return x
+
 
 class ResidualCouplingLayer(nn.Module):
     def __init__(

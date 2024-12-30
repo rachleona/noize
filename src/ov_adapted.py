@@ -1,32 +1,42 @@
 import torch
 
+
 def extract_se(audio_ref_tensor, perturber):
     dps = perturber.data_params
     y = audio_ref_tensor.unsqueeze(0)
-    y = spectrogram_torch(y, 
-                          dps.filter_length,
-                          dps.hop_length, 
-                          dps.win_length,
-                          perturber.hann_window,
-                          center=False).to(perturber.DEVICE)
-    
+    y = spectrogram_torch(
+        y,
+        dps.filter_length,
+        dps.hop_length,
+        dps.win_length,
+        perturber.hann_window,
+        center=False,
+    ).to(perturber.DEVICE)
+
     g = perturber.model.ref_enc(y.transpose(1, 2)).unsqueeze(-1)
 
     return g
+
 
 def convert(y, src_se, tgt_se, perturber):
     dps = perturber.data_params
     device = perturber.DEVICE
 
     y = y.unsqueeze(0)
-    spec = spectrogram_torch(y, dps.filter_length,
-                            dps.hop_length, dps.win_length,
-                            perturber.hann_window,
-                            center=False).to(device)
+    spec = spectrogram_torch(
+        y,
+        dps.filter_length,
+        dps.hop_length,
+        dps.win_length,
+        perturber.hann_window,
+        center=False,
+    ).to(device)
     spec_lengths = torch.LongTensor([spec.size(-1)]).to(device)
-    audio = perturber.model.voice_conversion(spec, spec_lengths, sid_src=src_se, sid_tgt=tgt_se, tau=0.3)[0][
-                0, 0].data.to(device)
+    audio = perturber.model.voice_conversion(
+        spec, spec_lengths, sid_src=src_se, sid_tgt=tgt_se, tau=0.3
+    )[0][0, 0].data.to(device)
     return audio
+
 
 # adapted from spectrogram_torch from openvoice
 def spectrogram_torch(y, n_fft, hop_size, win_size, hann_window, center=False):
@@ -54,7 +64,7 @@ def spectrogram_torch(y, n_fft, hop_size, win_size, hann_window, center=False):
         pad_mode="reflect",
         normalized=False,
         onesided=True,
-        return_complex=True
+        return_complex=True,
     )
     spec = torch.view_as_real(spec)
     spec = torch.sqrt(spec.pow(2).sum(-1) + 1e-6)

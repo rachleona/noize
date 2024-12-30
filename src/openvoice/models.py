@@ -7,6 +7,7 @@ from torch.nn.utils import weight_norm, remove_weight_norm
 from openvoice import modules
 from openvoice.commons import init_weights, sequence_mask
 
+
 class Generator(torch.nn.Module):
     def __init__(
         self,
@@ -83,6 +84,7 @@ class Generator(torch.nn.Module):
         for layer in self.resblocks:
             layer.remove_weight_norm()
 
+
 class PosteriorEncoder(nn.Module):
     def __init__(
         self,
@@ -114,9 +116,7 @@ class PosteriorEncoder(nn.Module):
         self.proj = nn.Conv1d(hidden_channels, out_channels * 2, 1)
 
     def forward(self, x, x_lengths, g=None, tau=1.0):
-        x_mask = torch.unsqueeze(sequence_mask(x_lengths, x.size(2)), 1).to(
-            x.dtype
-        )
+        x_mask = torch.unsqueeze(sequence_mask(x_lengths, x.size(2)), 1).to(x.dtype)
         x = self.pre(x) * x_mask
         x = self.enc(x, x_mask, g=g)
         stats = self.proj(x) * x_mask
@@ -124,15 +124,18 @@ class PosteriorEncoder(nn.Module):
         z = (m + torch.randn_like(m) * tau * torch.exp(logs)) * x_mask
         return z, m, logs, x_mask
 
+
 class ResidualCouplingBlock(nn.Module):
-    def __init__(self,
-            channels,
-            hidden_channels,
-            kernel_size,
-            dilation_rate,
-            n_layers,
-            n_flows=4,
-            gin_channels=0):
+    def __init__(
+        self,
+        channels,
+        hidden_channels,
+        kernel_size,
+        dilation_rate,
+        n_layers,
+        n_flows=4,
+        gin_channels=0,
+    ):
         super().__init__()
         self.channels = channels
         self.hidden_channels = hidden_channels
@@ -144,7 +147,17 @@ class ResidualCouplingBlock(nn.Module):
 
         self.flows = nn.ModuleList()
         for i in range(n_flows):
-            self.flows.append(modules.ResidualCouplingLayer(channels, hidden_channels, kernel_size, dilation_rate, n_layers, gin_channels=gin_channels, mean_only=True))
+            self.flows.append(
+                modules.ResidualCouplingLayer(
+                    channels,
+                    hidden_channels,
+                    kernel_size,
+                    dilation_rate,
+                    n_layers,
+                    gin_channels=gin_channels,
+                    mean_only=True,
+                )
+            )
             self.flows.append(modules.Flip())
 
     def forward(self, x, x_mask, g=None, reverse=False):
@@ -155,6 +168,7 @@ class ResidualCouplingBlock(nn.Module):
             for flow in reversed(self.flows):
                 x = flow(x, x_mask, g=g, reverse=reverse)
         return x
+
 
 class ReferenceEncoder(nn.Module):
     """
@@ -220,6 +234,7 @@ class ReferenceEncoder(nn.Module):
             L = (L - kernel_size + 2 * pad) // stride + 1
         return L
 
+
 class SynthesizerTrn(nn.Module):
     """
     Synthesizer for Training
@@ -270,7 +285,9 @@ class SynthesizerTrn(nn.Module):
             gin_channels=gin_channels,
         )
 
-        self.flow = ResidualCouplingBlock(inter_channels, hidden_channels, 5, 1, 4, gin_channels=gin_channels)
+        self.flow = ResidualCouplingBlock(
+            inter_channels, hidden_channels, 5, 1, 4, gin_channels=gin_channels
+        )
 
         self.ref_enc = ReferenceEncoder(spec_channels, gin_channels)
         self.zero_g = zero_g
@@ -278,8 +295,15 @@ class SynthesizerTrn(nn.Module):
     def voice_conversion(self, y, y_lengths, sid_src, sid_tgt, tau=1.0):
         g_src = sid_src
         g_tgt = sid_tgt
-        z, m_q, logs_q, y_mask = self.enc_q(y, y_lengths, g=g_src if not self.zero_g else torch.zeros_like(g_src), tau=tau)
+        z, m_q, logs_q, y_mask = self.enc_q(
+            y,
+            y_lengths,
+            g=g_src if not self.zero_g else torch.zeros_like(g_src),
+            tau=tau,
+        )
         z_p = self.flow(z, y_mask, g=g_src)
         z_hat = self.flow(z_p, y_mask, g=g_tgt, reverse=True)
-        o_hat = self.dec(z_hat * y_mask, g=g_tgt if not self.zero_g else torch.zeros_like(g_tgt))
+        o_hat = self.dec(
+            z_hat * y_mask, g=g_tgt if not self.zero_g else torch.zeros_like(g_tgt)
+        )
         return o_hat, y_mask, (z, z_p, z_hat)
