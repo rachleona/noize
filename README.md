@@ -82,7 +82,7 @@ $ noize [OPTIONS] [FILEPATH] [OUTPUT_DIR]
 
   
 
-## 📈 Performance
+<!-- ## 📈 Performance
 
 
 ## 🔧 Configurations
@@ -91,7 +91,7 @@ $ noize [OPTIONS] [FILEPATH] [OUTPUT_DIR]
 ## 🫡 Acknowledgement
 
 -openvoice
--antifake
+-antifake -->
 
 <!-- badge links -->
 
