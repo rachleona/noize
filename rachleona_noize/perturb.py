@@ -2,12 +2,12 @@ import cdpam
 import os
 import torch
 
-from cli import warn
+from rachleona_noize.cli import warn
 from glob import glob
-from openvoice.models import SynthesizerTrn
-from ov_adapted import extract_se, convert
+from rachleona_noize.openvoice.models import SynthesizerTrn
+from rachleona_noize.ov_adapted import extract_se, convert
 from rich.progress import track
-from utils import cdpam_prep, choose_target, get_hparams_from_file, ConfigError
+from rachleona_noize.utils import cdpam_prep, choose_target, get_hparams_from_file, ConfigError
 
 
 class PerturbationGenerator:

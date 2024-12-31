@@ -1,6 +1,6 @@
 import torch
 
-from openvoice.mel_processing import spectrogram_torch
+from rachleona_noize.openvoice.mel_processing import spectrogram_torch
 
 
 def extract_se(audio_ref_tensor, perturber):

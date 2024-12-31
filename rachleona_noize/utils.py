@@ -1,7 +1,7 @@
 import json
 import torch
 
-from openvoice.utils import HParams
+from rachleona_noize.openvoice.utils import HParams
 from pathlib import Path
 from faster_whisper import WhisperModel
 

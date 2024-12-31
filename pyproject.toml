@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "rachleona-noize"
+version = "0.1.0"
+description = "A cli tool that uses adversarial perturbation to protect audio clips from being used in unauthorised voice cloning"
+authors = ["rachleona <racheltam818@icloud.com>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+noize = "rachleona_noize.main:app"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+torch = "^2.5.1"
+faster-whisper = "1.1.0"
+ctranslate2 = "4.4.0"
+resampy = "^0.4.3"
+soundfile = "^0.12.1"
+typer = "^0.15.1"
+cdpam = "^0.0.6"
+librosa = "^0.10.2.post1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,4 +1,4 @@
-import cli
+import rachleona_noize.cli as cli
 import os
 import re
 import soundfile as sf
@@ -6,11 +6,12 @@ import typer
 import warnings
 
 from pathlib import Path
-from perturb import PerturbationGenerator
+from rachleona_noize.perturb import PerturbationGenerator
 from typing import Optional
 from typing_extensions import Annotated
-from utils import split_audio, ConfigError
+from rachleona_noize.utils import split_audio, ConfigError
 
+app = typer.Typer()
 
 # unclutter CLI by hiding warnings from libraries we have no direct control over
 # comment during development
@@ -21,6 +22,7 @@ warnings.filterwarnings(
 )
 
 
+@app.command()
 def main(
     filepath: Annotated[Path, typer.Argument()] = None,
     output_dir: Annotated[str, typer.Argument()] = None,
@@ -32,33 +34,6 @@ def main(
     learning_rate: float = 0.02,
     iterations: int = 500,
 ):
-    """
-    Receives arguments and options provided in the CLI and calls the PerturbationGenerator
-    Main function that ties the entire application together and handles final protected file output
-
-    Parameters
-    ----------
-    filepath : str, optional
-        the path to the audio file to apply protection for
-        if not given, the user will be prompted in the CLI later for a value
-    output_dir : str, optional
-        the directory to put the final protected audio file in
-        if not given, the user will be prompted in the CLI later for a value
-    output_filename : str, optional
-        the file name for the final output
-        if not given, will default to "protected_<basename of filepath>"
-
-    Other Parameters
-    ----------
-    The following parameters are maps directly to the arguments needed for initialising PerturbationGenerator
-    Users are welcomed to tweak these if necessary but the default values are what we decided were best for general cases
-    - config_file : str
-    - perturbation_level : int (scaled before passing to PerturbationGenerator)
-    - cdpam_weight : int
-    - distance_weight : int
-    - learning_rate : float
-    - iterations : int
-    """
 
     cli.check_file_exist(config_file, "config", True)
 
@@ -109,7 +84,3 @@ def main(
     )
 
     cli.report_perturbation_complete()
-
-
-if __name__ == "__main__":
-    typer.run(main)

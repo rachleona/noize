@@ -4,8 +4,8 @@ from torch.nn import functional as F
 from torch.nn import Conv1d, ConvTranspose1d
 from torch.nn.utils import weight_norm, remove_weight_norm
 
-from openvoice import modules
-from openvoice.commons import init_weights, sequence_mask
+from rachleona_noize.openvoice import modules
+from rachleona_noize.openvoice.commons import init_weights, sequence_mask
 
 
 class Generator(torch.nn.Module):
