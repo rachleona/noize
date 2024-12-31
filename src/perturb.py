@@ -63,6 +63,7 @@ class PerturbationGenerator:
         iterations,
     ):
 
+        self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
         data_params, model_params, pths_location, misc = get_hparams_from_file(
             config_file
         )
@@ -110,7 +111,6 @@ class PerturbationGenerator:
         self.DISTANCE_WEIGHT = distance_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level
-        self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
         self.ITERATIONS = iterations
 
     def generate_loss_function(self, src):

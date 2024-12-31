@@ -77,21 +77,17 @@ def get_audiofile(filepath, sampling_rate):
     np.ndarray
         the audio waveform data as a numpy array
     """
+    
+    while filepath is None or not check_file_exist(filepath, "audio"):
+        filepath = Prompt.ask("[cyan bold]Path of audio file to be protected")
 
-    while True:
-        if filepath is None:
-            filepath = Prompt.ask("[cyan bold]Path of audio file to be protected")
-
-        if not check_file_exist(filepath, "audio"):
-            continue
-
-        try:
-            src_srs, _ = librosa.load(filepath, sr=sampling_rate)
-            return src_srs
-        except NoBackendError:
-            print(
-                ":exclamation:[bold red] Error: Unrecognised format[/]\n[yellow]Please provide a valid audio file with an accepted format."
-            )
+    try:
+        src_srs, _ = librosa.load(filepath, sr=sampling_rate)
+        return src_srs
+    except NoBackendError:
+        print(
+            ":exclamation:[bold red] Error: Unrecognised format[/]\n[yellow]Please provide a valid audio file with an accepted format."
+        )
 
 
 def get_output_dir():
