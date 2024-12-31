@@ -10,7 +10,7 @@ noize = "rachleona_noize.main:app"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-torch = "^2.5.1"
+torch = "^2.2.0"
 faster-whisper = "1.1.0"
 ctranslate2 = "4.4.0"
 resampy = "^0.4.3"
