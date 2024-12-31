@@ -11,6 +11,7 @@ from typing import Optional
 from typing_extensions import Annotated
 from utils import split_audio, ConfigError
 
+
 # unclutter CLI by hiding warnings from libraries we have no direct control over
 # comment during development
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -26,11 +27,38 @@ def main(
     config_file: Annotated[Optional[Path], typer.Option()] = "config.json",
     output_filename: str = None,
     perturbation_level: int = 5,
-    c_weight: int = 50,
-    d_weight: int = 2,
+    cdpam_weight: int = 50,
+    distance_weight: int = 2,
     learning_rate: float = 0.02,
     iterations: int = 500,
 ):
+    """
+    Receives arguments and options provided in the CLI and calls the PerturbationGenerator
+    Main function that ties the entire application together and handles final protected file output
+
+    Parameters
+    ----------
+    filepath : str, optional
+        the path to the audio file to apply protection for
+        if not given, the user will be prompted in the CLI later for a value
+    output_dir : str, optional
+        the directory to put the final protected audio file in
+        if not given, the user will be prompted in the CLI later for a value
+    output_filename : str, optional
+        the file name for the final output
+        if not given, will default to "protected_<basename of filepath>"
+
+    Other Parameters
+    ----------
+    The following parameters are maps directly to the arguments needed for initialising PerturbationGenerator
+    Users are welcomed to tweak these if necessary but the default values are what we decided were best for general cases
+    - config_file : str
+    - perturbation_level : int (scaled before passing to PerturbationGenerator)
+    - cdpam_weight : int
+    - distance_weight : int
+    - learning_rate : float
+    - iterations : int
+    """
 
     cli.check_file_exist(config_file, "config", True)
 
@@ -40,8 +68,8 @@ def main(
             PerturbationGenerator,
             config_file,
             perturbation_level / 1000,
-            c_weight,
-            d_weight,
+            cdpam_weight,
+            distance_weight,
             learning_rate,
             iterations,
         )

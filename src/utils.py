@@ -6,9 +6,30 @@ from pathlib import Path
 from faster_whisper import WhisperModel
 
 
-# adapted from split_audio_whisper from openvoice
-# processes waveform tensors directly instead of using files
 def split_audio(audio_srs, device, sampling_rate):
+    """
+    Uses whisper model to split audio clips into multiple segments
+    Adapted from OpenVoice code to process audio data directly instead of from files
+
+    Parameters
+    ----------
+    audio_srs : np.ndarray
+        the time series representing the audio clip to apply protection to
+    device : str
+         device to be used for tensor computations (cpu or cuda)
+    sampling_rate : int
+        sampling rate of audio_srs
+
+    Returns
+    -------
+    list of dict
+        list of audio segment objects containing the following information about each segment
+            1. start index in the original time series
+            2. end index in the original time series
+            3. the wave data of the audio segment itself as a tensor
+            4. an id number
+    """
+
     sr_constant = sampling_rate / 1000
 
     if device == "cpu":
@@ -52,6 +73,21 @@ def split_audio(audio_srs, device, sampling_rate):
 # adapted from load_audio from CDPAM
 # prepares audio waveform tensors directly to format required
 def cdpam_prep(audio):
+    """
+    Transform audio time series tensors into shape expected by CDPAM
+    Adapted from CDPAM code to process audio wave data directly instead of through files
+
+    Parameters
+    ----------
+    audio : torch.Tensor
+        The audio tensor to be transformed
+
+    Returns
+    -------
+    torch.Tensor
+        The transformed tensor to be used in CDPAM value calculation
+    """
+
     audio = audio.to(torch.float64) * 32768
     audio = torch.reshape(audio, (-1, 1))
     shape = audio.shape
@@ -60,6 +96,22 @@ def cdpam_prep(audio):
 
 
 def choose_target(src_se, voices):
+    """
+    Chooses from a list of tone colour embedding tensors the one most different from src_se
+    (Uses simple euclidean distance)
+
+    Parameters
+    ----------
+    src_se : torch.Tensor
+        source audio tensor to compare to
+    voices : torch.Tensor
+        list of voice embeddings available stacked into one tensor
+
+    Returns
+    -------
+    torch.Tensor
+        the tensor in the voices given that is furthest away from src_se in the feature space
+    """
     diff = voices - src_se
     s = torch.sum(diff**2, 2)
     i = torch.argmax(s)
@@ -67,6 +119,21 @@ def choose_target(src_se, voices):
 
 
 def dict_has_keys(d, *args):
+    """
+    Checks if a given dictionary has a specific list of keys
+
+    Parameters
+    ----------
+    d : dict
+        the dictionary to check for keys
+    *args : list of str
+        list of keys to check for
+
+    Returns
+    -------
+    bool
+        True only if d has all of *args as keys and False otherwise
+    """
     if not isinstance(d, dict):
         return False
 
@@ -79,12 +146,46 @@ def dict_has_keys(d, *args):
 
 
 class ConfigError(Exception):
+    """
+    Custom exception for config related issues
+
+    Attributes
+    ----------
+    message: str
+    """
+
     def __init__(self, message, *args):
         super().__init__(*args)
         self.message = message
 
 
 def get_hparams_from_file(config_path):
+    """
+    Extracts key configs from the file given at config_path
+    Uses HParams class from OpenVoice code
+
+    Parameters
+    ----------
+    config_path: str
+        the file path to the config file
+
+    Returns
+    -------
+    data_params: HParams
+        a subset of configs for handling audio data e.g. sampling rate
+    model_params: HParams
+        a subset of configs for setting up the core OpenVoice synthesiser model
+    pths_location: str
+        the path to the directory where the OpenVoice checkpoint and target voice tensors are stored
+    misc_config: HParams
+        object containing all other configs not covered in the above
+
+    Raises
+    ------
+    ConfigError
+        If the config file does not contain the expected data necessary for setting up the perturbation generator
+    """
+
     with open(config_path, "r", encoding="utf-8") as f:
         data = f.read()
     config = json.loads(data)

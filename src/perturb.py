@@ -11,6 +11,48 @@ from utils import cdpam_prep, choose_target, get_hparams_from_file, ConfigError
 
 
 class PerturbationGenerator:
+    """
+    Central class containing details and methods needed to calculate perturbation
+
+    ...
+
+    Attributes
+    ----------
+    data_params : dict
+        a subset of configs for handling audio data e.g. sampling rate
+    hann_window: dict
+        a dictionary for recording hann_window values used in spectrogram related calculations
+    model : SynthesizerTrn
+        OpenVoice core voice extraction and conversion model object to be used in loss function
+    voices : torch.Tensor
+        matrix containing all saved voice tensors to be used in selecting initial parameters
+    CDPAM_WEIGHT : int
+        the weight for the cdpam value between original clip and perturbed clip in the loss function
+    DISTANCE_WEIGHT : int
+        the weight for the distance between voice embeddings in the loss function
+    LEARNING_RATE : float
+        learning rate for main loss function that optimises perturbation value
+    PERTURBATION_LEVEL : float
+        magnitude of perturbation allowed
+    DEVICE : str
+        device to be used for tensor computations (cpu or cuda)
+
+    Methods
+    -------
+    generate_loss_function(src)
+        Returns the appropriate loss function and voice embedding needed to calculate initial parameters used in perturbation calculation
+        Varies based on source audio segment given
+
+    minimize(function, initial_parameters, segment_num)
+        Uses torch optimiser to minimise loss value based on loss function and initial parameters given
+        Each step of the optimiser is tied to a progress tracker to be shown on the CLI
+
+    generate_perturbations(src_segments, l)
+        Given a list of audio segments and expected shape of the perturbation tensor,
+        calls the two methods above to generate perturbation for each segment and unifies
+        them into one numpy array/time series
+    """
+
     def __init__(
         self,
         config_file,
@@ -25,16 +67,7 @@ class PerturbationGenerator:
             config_file
         )
         self.data_params = data_params
-        self.model_params = model_params
-        self.pths_location = pths_location
-        self.misc_config = misc
-
-        self.CDPAM_WEIGHT = cdpam_weight
-        self.DISTANCE_WEIGHT = distance_weight
-        self.LEARNING_RATE = learning_rate
-        self.PERTURBATION_LEVEL = perturbation_level
-        self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        self.ITERATIONS = iterations
+        self.hann_window = {}
 
         self.model = SynthesizerTrn(
             len(getattr(misc, "symbols", [])),
@@ -54,7 +87,6 @@ class PerturbationGenerator:
             )
 
         self.model.load_state_dict(checkpoint_dict["model"], strict=False)
-        self.hann_window = {}
 
         voice_bank_dir = os.path.join(pths_location, "voices", "*.pth")
         files = glob(voice_bank_dir)
@@ -74,7 +106,33 @@ class PerturbationGenerator:
                 continue
             self.voices[k] += se
 
+        self.CDPAM_WEIGHT = cdpam_weight
+        self.DISTANCE_WEIGHT = distance_weight
+        self.LEARNING_RATE = learning_rate
+        self.PERTURBATION_LEVEL = perturbation_level
+        self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+        self.ITERATIONS = iterations
+
     def generate_loss_function(self, src):
+        """
+        Returns the appropriate loss function and voice embedding needed to calculate initial parameters used in perturbation calculation
+        Varies based on source audio segment given
+
+        Parameters
+        ----------
+        src : dict
+            The audio segment object containing its start and end index in the original time series,
+            the tensor representing the data within the segment and an id number
+
+        Returns
+        -------
+        loss : function
+            The loss function for calculating perturbation needed for protecting this audio segment
+        source_se : torch.Tensor
+            OpenVoice tone colour embedding tensor extracted from the audio segment given
+            Will be used in calculating starting parameter for loss minimisation
+        """
+
         cdpam_loss = cdpam.CDPAM(dev=self.DEVICE)
         source_se = extract_se(src["tensor"], self).detach()
         source_cdpam = cdpam_prep(source_se)
@@ -91,13 +149,33 @@ class PerturbationGenerator:
 
         return loss, source_se
 
-    def minimize(self, function, initial_parameters, segment_num):
+    def minimize(self, function, initial_parameters, segment_id):
+        """
+        Uses torch optimiser to minimise loss value based on loss function and initial parameters given
+        Each step of the optimiser is tied to a progress tracker to be shown on the CLI
+
+        Parameters
+        ----------
+        function : function
+            loss function to optimise over
+        initial_parameters : torch.Tensor
+            the initial values to start optimisation with
+        segment_id : int
+            the id of the current segment we are calculating perturbation for
+            used in progress tracker to report overall progress
+
+        Returns
+        -------
+        torch.Tensor
+            the perturbation tensor to be added to the segment tensor to apply protection
+        """
+
         params = initial_parameters
         params.requires_grad_()
         optimizer = torch.optim.Adam([params], lr=self.LEARNING_RATE)
 
         for _ in track(
-            range(self.ITERATIONS), description=f"Processing segment {segment_num}"
+            range(self.ITERATIONS), description=f"Processing segment {segment_id}"
         ):
             optimizer.zero_grad()
             loss = function(params)
@@ -107,6 +185,23 @@ class PerturbationGenerator:
         return params / torch.max(params) * self.PERTURBATION_LEVEL
 
     def generate_perturbations(self, src_segments, l):
+        """
+        Given a list of audio segments and expected shape of the perturbation tensor,
+        calls the two methods above to generate perturbation for each segment and unifies
+        them into one numpy array/time series
+
+        Parameters
+        ----------
+        src_segments : list
+            A list of audio segment objects to produce perturbation for
+        l : int
+            size of the perturbation array to be returned
+
+        Returns
+        -------
+        np.ndarray
+            perturbation to be added to the original audio time series to protect against voice cloning
+        """
         total_perturbation = torch.zeros(l).to(self.DEVICE)
 
         for segment in src_segments:
