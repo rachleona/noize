@@ -29,8 +29,13 @@ Inspired by [AntiFake][antifake] and [Glaze][glaze].
 
 > [!IMPORTANT]
 > Noize works best with GPUs as it requires a lot of computational power. Please ensure you have the necessary hardware before proceeding
-  
-Install using the following command
+
+First, make sure you have [Git Large File Storage][git_lfs] installed as this repository includes some large model weights stored via Git LFS. If you don't have it, please download the package [here][git_lfs] and install via
+```console
+git lfs install --skip-repo
+```
+
+Then, install Noize using the following command
 ```console
 pip install git+https://github.com/rachleona/noize.git
 ```
@@ -103,6 +108,7 @@ $ noize [OPTIONS] [FILEPATH] [OUTPUT_DIR]
 
 <!--package and repo links-->
 [black]:https://github.com/psf/black
+[git_lfs]:https://git-lfs.com/
 
 <!--other links-->
 [part_ii_page]:https://www.cst.cam.ac.uk/teaching/part-ii/projects
