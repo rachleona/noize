@@ -1,9 +1,18 @@
+[project]
+name = "rachleona-noize"
+version = "0.1.0"
+description = "A cli tool that uses adversarial perturbation to protect audio clips from being used in unauthorised voice cloning"
+authors = ["rachleona <racheltam818@icloud.com>"]
+readme = "README.md"
+requires-python = ">=3.10"
+
 [tool.poetry]
 name = "rachleona-noize"
 version = "0.1.0"
 description = "A cli tool that uses adversarial perturbation to protect audio clips from being used in unauthorised voice cloning"
 authors = ["rachleona <racheltam818@icloud.com>"]
 readme = "README.md"
+requires-python = ">=3.10"
 
 [tool.poetry.scripts]
 noize = "rachleona_noize.main:app"
