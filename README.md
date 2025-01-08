@@ -15,6 +15,7 @@ Inspired by [AntiFake][antifake] and [Glaze][glaze].
 <!-- badges -->
 <!--remember to add python version here-->
 [![part_ii_badge]][part_ii_page]
+![python_badge]
 ![pytorch_badge]
 [![black_badge]][black]
 <!-- badges -->
@@ -98,6 +99,7 @@ $ noize [OPTIONS] [FILEPATH] [OUTPUT_DIR]
 [part_ii_badge]:https://img.shields.io/badge/cambridge%20part%20ii-85B09A?style=for-the-badge
 [pytorch_badge]:https://img.shields.io/badge/pytorch-2.2+-ee4c2c.svg?style=for-the-badge
 [black_badge]:https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge
+[python_badge]:https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Frachleona%2Fnoize%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&style=for-the-badge
 
 <!--package and repo links-->
 [black]:https://github.com/psf/black
