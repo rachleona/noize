@@ -1,4 +1,5 @@
 import json
+import os
 import torch
 
 from rachleona_noize.openvoice.utils import HParams
@@ -70,8 +71,6 @@ def split_audio(audio_srs, device, sampling_rate):
     return res
 
 
-# adapted from load_audio from CDPAM
-# prepares audio waveform tensors directly to format required
 def cdpam_prep(audio):
     """
     Transform audio time series tensors into shape expected by CDPAM
@@ -190,7 +189,7 @@ def get_hparams_from_file(config_path):
         data = f.read()
     config = json.loads(data)
 
-    if not dict_has_keys(config, "data", "model", "pths_location"):
+    if not dict_has_keys(config, "data", "model"):
         # error
         raise ConfigError("Config file does not contain key sections")
 
@@ -226,7 +225,13 @@ def get_hparams_from_file(config_path):
 
     data_params = HParams(**config["data"])
     model_params = HParams(**config["model"])
-    pths_location = Path(config["pths_location"])
+
+    if "pths_location" in config:
+        pths_location = Path(config["pths_location"])
+    else:
+        dirname = os.path.dirname(__file__)
+        pths_location = Path(os.path.join(dirname, "..", "misc"))
+
     rest = {
         key: val
         for key, val in config.items()
@@ -235,6 +240,6 @@ def get_hparams_from_file(config_path):
     misc_config = HParams(**rest)
 
     if not pths_location.exists():
-        return ConfigError("Constant tensors directory not found")
+        raise ConfigError("Constant tensors directory not found")
 
     return data_params, model_params, pths_location, misc_config
