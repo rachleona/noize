@@ -260,7 +260,7 @@ class SynthesizerTrn(nn.Module):
         n_speakers=256,
         gin_channels=256,
         zero_g=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 

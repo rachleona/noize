@@ -7,7 +7,12 @@ from glob import glob
 from rachleona_noize.openvoice.models import SynthesizerTrn
 from rachleona_noize.ov_adapted import extract_se, convert
 from rich.progress import track
-from rachleona_noize.utils import cdpam_prep, choose_target, get_hparams_from_file, ConfigError
+from rachleona_noize.utils import (
+    cdpam_prep,
+    choose_target,
+    get_hparams_from_file,
+    ConfigError,
+)
 
 
 class PerturbationGenerator:
