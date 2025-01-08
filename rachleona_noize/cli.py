@@ -77,7 +77,7 @@ def get_audiofile(filepath, sampling_rate):
     np.ndarray
         the audio waveform data as a numpy array
     """
-    
+
     while filepath is None or not check_file_exist(filepath, "audio"):
         filepath = Prompt.ask("[cyan bold]Path of audio file to be protected")
 

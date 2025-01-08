@@ -20,13 +20,15 @@ warnings.filterwarnings(
     "ignore",
     message=".*torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm.*",
 )
+dirpath = os.path.dirname(__file__)
+default_config_path = os.path.join(dirpath, "..", "config.json")
 
 
 @app.command()
 def main(
     filepath: Annotated[Path, typer.Argument()] = None,
     output_dir: Annotated[str, typer.Argument()] = None,
-    config_file: Annotated[Optional[Path], typer.Option()] = "config.json",
+    config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
     output_filename: str = None,
     perturbation_level: int = 5,
     cdpam_weight: int = 50,

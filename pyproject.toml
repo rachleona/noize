@@ -2,33 +2,23 @@
 name = "rachleona-noize"
 version = "0.1.0"
 description = "A cli tool that uses adversarial perturbation to protect audio clips from being used in unauthorised voice cloning"
-authors = ["rachleona <racheltam818@icloud.com>"]
+authors = [
+    {name = "rachleona",email = "racheltam818@icloud.com"}
+]
 readme = "README.md"
-requires-python = ">=3.10"
-
-[tool.poetry]
-name = "rachleona-noize"
-version = "0.1.0"
-description = "A cli tool that uses adversarial perturbation to protect audio clips from being used in unauthorised voice cloning"
-authors = ["rachleona <racheltam818@icloud.com>"]
-readme = "README.md"
-requires-python = ">=3.10"
-
-[tool.poetry.scripts]
-noize = "rachleona_noize.main:app"
-
-[tool.poetry.dependencies]
-python = "^3.10"
-torch = "^2.2.0"
-faster-whisper = "1.1.0"
-ctranslate2 = "4.4.0"
-resampy = "^0.4.3"
-soundfile = "^0.12.1"
-typer = "^0.15.1"
-cdpam = "^0.0.6"
-librosa = "^0.10.2.post1"
+requires-python = ">=3.10 <3.13"
+dependencies = [
+    "cdpam (>=0.0.6,<0.0.7)",
+    "ctranslate2 (==4.4.0)",
+    "resampy (>=0.4.3,<0.5.0)",
+    "torch (>=2.5.1,<3.0.0)",
+    "soundfile (>=0.13.0,<0.14.0)",
+    "typer (>=0.15.1,<0.16.0)",
+    "librosa (>=0.10.2.post1,<0.11.0)",
+    "faster-whisper (>=1.1.1,<2.0.0)"
+]
 
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
