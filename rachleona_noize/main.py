@@ -35,6 +35,9 @@ def main(
     distance_weight: int = 2,
     learning_rate: float = 0.02,
     iterations: int = 500,
+    logs: bool = False,
+    log_file: str = "log.csv",
+    target: str = None
 ):
 
     cli.check_file_exist(config_file, "config", True)
@@ -49,6 +52,8 @@ def main(
             distance_weight,
             learning_rate,
             iterations,
+            logs,
+            target
         )
     except ConfigError as err:
         cli.report_config_error(err)
@@ -69,6 +74,9 @@ def main(
 
     p = perturber.generate_perturbations(src_segments, len(src_srs))
     target_audio_srs = src_srs + p
+
+    if logs:
+        perturber.logger.save(log_file)
 
     if output_filename == None:
         output_filename = filepath
