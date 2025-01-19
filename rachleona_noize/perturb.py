@@ -147,23 +147,21 @@ class PerturbationGenerator:
             Will be used in calculating starting parameter for loss minimisation
         """
 
-        cdpam_loss = cdpam.CDPAM(dev=self.DEVICE)
         source_se = extract_se(src["tensor"], self).detach()
-        source_cdpam = cdpam_prep(source_se)
+        quality_func = self._generate_cdpam_quality_func(src)
 
         def loss(perturbation):
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
             new_se = extract_se(new_srs_tensor, self)
-            new_cdpam = cdpam_prep(new_srs_tensor)
             euc_dist = torch.sum((source_se - new_se) ** 2)
-            cdpam_val = cdpam_loss.forward(source_cdpam, new_cdpam)
+            quality_term = quality_func(new_srs_tensor)
 
-            loss = -self.DISTANCE_WEIGHT * euc_dist + self.CDPAM_WEIGHT * cdpam_val
+            loss = -self.DISTANCE_WEIGHT * euc_dist + self.CDPAM_WEIGHT * quality_term
 
             if self.logger is not None:
                 self.logger.log("loss", loss)
-                self.logger.log("cdpam", cdpam_val)
+                self.logger.log("cdpam", quality_term)
                 self.logger.log("dist", euc_dist)
 
             return loss
@@ -245,3 +243,9 @@ class PerturbationGenerator:
             total_perturbation += padded[:l]
 
         return total_perturbation.cpu().detach().numpy()
+
+    def _generate_cdpam_quality_func(self, src):
+        cdpam_loss = cdpam.CDPAM(dev=self.DEVICE)
+        source_cdpam = cdpam_prep(src['tensor'])
+        return lambda new_tensor: cdpam_loss.forward(source_cdpam, cdpam_prep(new_tensor))
+    
