@@ -3,6 +3,7 @@ import os
 import torch
 
 from rachleona_noize.cli import warn
+from rachleona_noize.logging import Logger
 from glob import glob
 from rachleona_noize.openvoice.models import SynthesizerTrn
 from rachleona_noize.ov_adapted import extract_se, convert
@@ -66,6 +67,8 @@ class PerturbationGenerator:
         distance_weight,
         learning_rate,
         iterations,
+        logs,
+        target
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -102,21 +105,27 @@ class PerturbationGenerator:
                 "No reference voice tensors found in tensors directory given in config file"
             )
 
-        self.voices = torch.zeros(max(1, len(files)), 1, 256, 1).to(self.DEVICE)
-        for k, v in enumerate(files):
-            se = torch.load(
-                v, map_location=torch.device(self.DEVICE), weights_only=True
-            )
-            if not torch.is_tensor(se) or se.shape != torch.Size((1, 256, 1)):
-                warn(f"Data loaded from {v} is not a valid voice tensor")
-                continue
-            self.voices[k] += se
+        if target is None:
+            self.voices = torch.zeros(max(1, len(files)), 1, 256, 1).to(self.DEVICE)
+            for k, v in enumerate(files):
+                se = torch.load(
+                    v, map_location=torch.device(self.DEVICE), weights_only=True
+                )
+                if not torch.is_tensor(se) or se.shape != torch.Size((1, 256, 1)):
+                    warn(f"Data loaded from {v} is not a valid voice tensor")
+                    continue
+                self.voices[k] += se
+        else:
+            self.target = torch.load(target).to(self.DEVICE)
 
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level
         self.ITERATIONS = iterations
+
+        if logs:
+            self.logger = Logger("loss", "cdpam", "dist")
 
     def generate_loss_function(self, src):
         """
@@ -150,7 +159,14 @@ class PerturbationGenerator:
             euc_dist = torch.sum((source_se - new_se) ** 2)
             cdpam_val = cdpam_loss.forward(source_cdpam, new_cdpam)
 
-            return -self.DISTANCE_WEIGHT * euc_dist + self.CDPAM_WEIGHT * cdpam_val
+            loss = -self.DISTANCE_WEIGHT * euc_dist + self.CDPAM_WEIGHT * cdpam_val
+
+            if self.logger is not None:
+                self.logger.log("loss", loss)
+                self.logger.log("cdpam", cdpam_val)
+                self.logger.log("dist", euc_dist)
+
+            return loss
 
         return loss, source_se
 
@@ -211,7 +227,12 @@ class PerturbationGenerator:
 
         for segment in src_segments:
             loss_f, source_se = self.generate_loss_function(segment)
-            target_se = choose_target(source_se, self.voices)
+
+            if self.target is None:
+                target_se = choose_target(source_se, self.voices)
+            else:
+                target_se = self.target
+                
             target_segment = convert(segment["tensor"], source_se, target_se, self)
             padding = torch.nn.ZeroPad1d(
                 (0, len(segment["tensor"]) - len(target_segment))
