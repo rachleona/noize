@@ -21,7 +21,7 @@ warnings.filterwarnings(
     message=".*torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm.*",
 )
 dirpath = os.path.dirname(__file__)
-default_config_path = os.path.join(dirpath, "..", "config.json")
+default_config_path = os.path.join(dirpath, "config.json")
 
 
 @app.command()

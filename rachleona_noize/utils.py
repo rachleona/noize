@@ -230,7 +230,7 @@ def get_hparams_from_file(config_path):
         pths_location = Path(config["pths_location"])
     else:
         dirname = os.path.dirname(__file__)
-        pths_location = Path(os.path.join(dirname, "..", "misc"))
+        pths_location = Path(os.path.join(dirname, "misc"))
 
     rest = {
         key: val
