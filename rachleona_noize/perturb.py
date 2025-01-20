@@ -1,15 +1,15 @@
-import cdpam
 import os
 import torch
 
-from rachleona_noize.cli import warn
-from rachleona_noize.logging import Logger
 from glob import glob
+from rachleona_noize.cli import warn
+from rachleona_noize.encoders import generate_openvoice_loss
+from rachleona_noize.logging import Logger
+from rachleona_noize.quality import generate_cdpam_quality_func
 from rachleona_noize.openvoice.models import SynthesizerTrn
 from rachleona_noize.ov_adapted import extract_se, convert
 from rich.progress import track
 from rachleona_noize.utils import (
-    cdpam_prep,
     choose_target,
     get_hparams_from_file,
     ConfigError,
@@ -65,6 +65,10 @@ class PerturbationGenerator:
         perturbation_level,
         cdpam_weight,
         distance_weight,
+        snr_wieght,
+        perturbation_norm_weight,
+        frequency_weight,
+        avc_weight,
         learning_rate,
         iterations,
         logs,
@@ -72,10 +76,12 @@ class PerturbationGenerator:
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        data_params, model_params, pths_location, misc = get_hparams_from_file(
+        data_params, model_params, pths_location, misc, avc_enc_params, avc_hp = get_hparams_from_file(
             config_file
         )
         self.data_params = data_params
+        self.avc_enc_params = avc_enc_params
+        self.avc_hp = avc_hp
         self.hann_window = {}
 
         self.model = SynthesizerTrn(
@@ -120,6 +126,10 @@ class PerturbationGenerator:
 
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
+        self.SNR_WEIGHT = snr_wieght
+        self.PETURBATION_NORM_WEIGHT = perturbation_norm_weight
+        self.FREQUENCY_WEIGHT = frequency_weight
+        self.AVC_WEIGHT = avc_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level
         self.ITERATIONS = iterations
@@ -127,7 +137,7 @@ class PerturbationGenerator:
         if logs:
             self.logger = Logger("loss", "cdpam", "dist")
 
-    def generate_loss_function(self, src):
+    def generate_loss_function(self, src, src_se):
         """
         Returns the appropriate loss function and voice embedding needed to calculate initial parameters used in perturbation calculation
         Varies based on source audio segment given
@@ -147,26 +157,23 @@ class PerturbationGenerator:
             Will be used in calculating starting parameter for loss minimisation
         """
 
-        source_se = extract_se(src["tensor"], self).detach()
-        quality_func = self._generate_cdpam_quality_func(src)
+        openvoice_loss = generate_openvoice_loss(src, self)
+        quality_func = generate_cdpam_quality_func(src_se, self)
 
         def loss(perturbation):
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
-            new_se = extract_se(new_srs_tensor, self)
-            euc_dist = torch.sum((source_se - new_se) ** 2)
+            dist_term = openvoice_loss(new_srs_tensor)
             quality_term = quality_func(new_srs_tensor)
 
-            loss = -self.DISTANCE_WEIGHT * euc_dist + self.CDPAM_WEIGHT * quality_term
+            loss = dist_term + quality_term
 
             if self.logger is not None:
                 self.logger.log("loss", loss)
-                self.logger.log("cdpam", quality_term)
-                self.logger.log("dist", euc_dist)
 
             return loss
 
-        return loss, source_se
+        return loss
 
     def minimize(self, function, initial_parameters, segment_id):
         """
@@ -224,7 +231,8 @@ class PerturbationGenerator:
         total_perturbation = torch.zeros(l).to(self.DEVICE)
 
         for segment in src_segments:
-            loss_f, source_se = self.generate_loss_function(segment)
+            source_se = extract_se(segment["tensor"], self).detach()
+            loss_f = self.generate_loss_function(segment, source_se)
 
             if self.target is None:
                 target_se = choose_target(source_se, self.voices)
@@ -243,9 +251,3 @@ class PerturbationGenerator:
             total_perturbation += padded[:l]
 
         return total_perturbation.cpu().detach().numpy()
-
-    def _generate_cdpam_quality_func(self, src):
-        cdpam_loss = cdpam.CDPAM(dev=self.DEVICE)
-        source_cdpam = cdpam_prep(src['tensor'])
-        return lambda new_tensor: cdpam_loss.forward(source_cdpam, cdpam_prep(new_tensor))
-    
