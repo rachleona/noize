@@ -1,13 +1,13 @@
 {
   "openvoice_version": "v2",
-  "data": {
+  "ov_data": {
     "sampling_rate": 22050,
     "filter_length": 1024,
     "hop_length": 256,
     "win_length": 1024,
     "n_speakers": 0
   },
-  "model": {
+  "ov_model": {
     "zero_g": true,
     "inter_channels": 192,
     "hidden_channels": 192,
@@ -53,5 +53,32 @@
       4
     ],
     "gin_channels": 256
+  },
+  "avc_encoder":{
+    "c_in": 512,
+    "c_h": 128,
+    "c_out": 128,
+    "kernel_size": 5,
+    "bank_size": 8,
+    "bank_scale": 1,
+    "c_bank": 128,
+    "n_conv_blocks": 6,
+    "n_dense_blocks": 6,
+    "subsample": [1, 2, 1, 2, 1, 2],
+    "act": "relu",
+    "dropout_rate": 0
+  },
+  "avc_hp": {
+    "n_fft": 2048,
+    "frame_shift": 0.0125,
+    "frame_length": 0.05, 
+    "frame_size": 1,
+    "n_mels": 512, 
+    "power": 1.2, 
+    "n_iter": 100, 
+    "preemphasis": 0.97, 
+    "max_db": 100,
+    "ref_db": 20
   }
+  
 }

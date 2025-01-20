@@ -189,12 +189,12 @@ def get_hparams_from_file(config_path):
         data = f.read()
     config = json.loads(data)
 
-    if not dict_has_keys(config, "data", "model"):
+    if not dict_has_keys(config, "ov_data", "ov_model", "avc_encoder", "avc_hp"):
         # error
         raise ConfigError("Config file does not contain key sections")
 
     if not dict_has_keys(
-        config["data"],
+        config["ov_data"],
         "sampling_rate",
         "filter_length",
         "hop_length",
@@ -204,7 +204,7 @@ def get_hparams_from_file(config_path):
         raise ConfigError("Data config is missing key entries")
 
     if not dict_has_keys(
-        config["model"],
+        config["ov_model"],
         "zero_g",
         "inter_channels",
         "hidden_channels",
@@ -225,6 +225,8 @@ def get_hparams_from_file(config_path):
 
     data_params = HParams(**config["data"])
     model_params = HParams(**config["model"])
+    avc_hp = HParams(**config["avc_hp"])
+    avc_enc_params = config["avc_encoder"]
 
     if "pths_location" in config:
         pths_location = Path(config["pths_location"])
@@ -235,11 +237,11 @@ def get_hparams_from_file(config_path):
     rest = {
         key: val
         for key, val in config.items()
-        if key != "data" and key != "model" and key != "pths_location"
+        if key not in ["data", "model", "pths_location", "avc_encoder", "avc_hp"]
     }
     misc_config = HParams(**rest)
 
     if not pths_location.exists():
         raise ConfigError("Constant tensors directory not found")
 
-    return data_params, model_params, pths_location, misc_config
+    return data_params, model_params, pths_location, misc_config, avc_enc_params, avc_hp
