@@ -1,5 +1,6 @@
 import csv
 
+
 class Logger:
     def __init__(self, *args):
         self.__logs = {}
@@ -10,7 +11,7 @@ class Logger:
         self.__logs[key].append(value)
 
     def save(self, filename):
-        with open(filename, 'w', newline='') as csvfile:
+        with open(filename, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             for k in self.__logs:
                 writer.writerow([k] + self._logs[k])

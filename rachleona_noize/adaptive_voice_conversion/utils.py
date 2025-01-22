@@ -2,23 +2,27 @@ import librosa
 import torch
 import torch.nn.functional as F
 
+
 def utt_make_frames(x, frame_size):
-    remains = x.size(0) % frame_size 
+    remains = x.size(0) % frame_size
     if remains != 0:
         x = F.pad(x, (0, remains))
     out = x.view(1, x.size(0) // frame_size, frame_size * x.size(1)).transpose(1, 2)
     return out
+
 
 def get_spectrograms(y, hp, sr, device):
     # Preemphasis
     y = torch.append(y[0], y[1:] - hp.preemphasis * y[:-1])
 
     # stft
-    linear = torch.stft(y=y,
-                          n_fft=hp.n_fft,
-                          hop_length=int(sr*hp.frame_shift),
-                          win_length=int(sr*hp.frame_length),
-                          return_complex=True)
+    linear = torch.stft(
+        y=y,
+        n_fft=hp.n_fft,
+        hop_length=int(sr * hp.frame_shift),
+        win_length=int(sr * hp.frame_length),
+        return_complex=True,
+    )
     linear = torch.view_as_real(linear)
 
     # magnitude spectrogram
@@ -39,6 +43,6 @@ def get_spectrograms(y, hp, sr, device):
 
     # Transpose
     mel = mel.T.to(torch.float32)  # (T, n_mels)
-    mag = mag.T.to(torch.float32) # (T, 1+n_fft//2)
+    mag = mag.T.to(torch.float32)  # (T, 1+n_fft//2)
 
     return mel, mag
