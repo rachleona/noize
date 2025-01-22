@@ -3,11 +3,11 @@ import torch
 
 from glob import glob
 from rachleona_noize.cli import warn
-from rachleona_noize.encoders import generate_openvoice_loss
+from rachleona_noize.encoders import *
 from rachleona_noize.logging import Logger
-from rachleona_noize.quality import generate_cdpam_quality_func
+from rachleona_noize.quality import *
 from rachleona_noize.openvoice.models import SynthesizerTrn
-from rachleona_noize.ov_adapted import extract_se, convert
+from rachleona_noize.ov_adapted import *
 from rich.progress import track
 from rachleona_noize.utils import (
     choose_target,
@@ -62,6 +62,10 @@ class PerturbationGenerator:
     def __init__(
         self,
         config_file,
+        cdpam,
+        avc,
+        freevc,
+        yourtts,
         perturbation_level,
         cdpam_weight,
         distance_weight,
@@ -69,15 +73,17 @@ class PerturbationGenerator:
         perturbation_norm_weight,
         frequency_weight,
         avc_weight,
+        freevc_weight,
+        yourtts_weight,
         learning_rate,
         iterations,
         logs,
-        target
+        target,
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        data_params, model_params, pths_location, misc, avc_enc_params, avc_hp = get_hparams_from_file(
-            config_file
+        data_params, model_params, pths_location, misc, avc_enc_params, avc_hp = (
+            get_hparams_from_file(config_file)
         )
         self.data_params = data_params
         self.avc_enc_params = avc_enc_params
@@ -124,18 +130,43 @@ class PerturbationGenerator:
         else:
             self.target = torch.load(target).to(self.DEVICE)
 
+        # modules to include in loss function
+        self.CDPAM_QUALITY = cdpam
+        self.AVC_LOSS = avc
+        self.FREEVC_LOSS = freevc
+        self.YOURTTS_LOSS = yourtts
+
+        # tunable weights
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
         self.SNR_WEIGHT = snr_wieght
         self.PETURBATION_NORM_WEIGHT = perturbation_norm_weight
         self.FREQUENCY_WEIGHT = frequency_weight
         self.AVC_WEIGHT = avc_weight
+        self.FREEVC_WEIGHT = freevc_weight
+        self.YOURTTS_WEIGHT = yourtts_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level
         self.ITERATIONS = iterations
 
         if logs:
-            self.logger = Logger("loss", "cdpam", "dist")
+            # log total loss and openvoice embeddings difference by default
+            log_values = ["loss", "dist"]
+
+            if avc:
+                log_values.append("avc")
+            if freevc:
+                log_values.append("freevc")
+            if yourtts:
+                log_values.append("yourtts")
+            if cdpam:
+                log_values.append("cdpam")
+            else:
+                log_values.append("snr")
+                log_values.append("freq")
+                log_values.append("p_norm")
+
+            self.logger = Logger(*log_values)
 
     def generate_loss_function(self, src, src_se):
         """
@@ -157,14 +188,28 @@ class PerturbationGenerator:
             Will be used in calculating starting parameter for loss minimisation
         """
 
-        openvoice_loss = generate_openvoice_loss(src, self)
-        quality_func = generate_cdpam_quality_func(src_se, self)
+        if self.CDPAM_QUALITY:
+            quality_func = generate_cdpam_quality_func(src, self)
+        else:
+            quality_func = generate_antifake_quality_func(self)
+
+        loss_modules = [generate_openvoice_loss(src_se, self)]
+
+        if self.AVC_LOSS:
+            generate_avc_loss(src["tensor"], self)
+        if self.FREEVC_LOSS:
+            generate_freevc_loss(src["tensor"], self)
+        if self.YOURTTS_LOSS:
+            generate_yourtts_loss(src["tensor"], self)
 
         def loss(perturbation):
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
-            dist_term = openvoice_loss(new_srs_tensor)
-            quality_term = quality_func(new_srs_tensor)
+
+            quality_term = quality_func(new_srs_tensor, perturbation)
+            dist_term = 0
+            for m in loss_modules:
+                dist_term += m.loss(new_srs_tensor)
 
             loss = dist_term + quality_term
 
@@ -238,7 +283,7 @@ class PerturbationGenerator:
                 target_se = choose_target(source_se, self.voices)
             else:
                 target_se = self.target
-                
+
             target_segment = convert(segment["tensor"], source_se, target_se, self)
             padding = torch.nn.ZeroPad1d(
                 (0, len(segment["tensor"]) - len(target_segment))

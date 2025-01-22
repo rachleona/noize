@@ -30,6 +30,10 @@ def main(
     output_dir: Annotated[str, typer.Argument()] = None,
     config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
     output_filename: str = None,
+    cdpam=True,
+    avc: bool = True,
+    freevc: bool = True,
+    yourtts: bool = True,
     perturbation_level: int = 5,
     cdpam_weight: int = 50,
     distance_weight: int = 2,
@@ -37,11 +41,13 @@ def main(
     perturbation_norm_weight: float = 0.05,
     frequency_weight: float = 0.3,
     avc_weight: float = 1,
+    freevc_weight: float = 1,
+    yourtts_weight: float = 1,
     learning_rate: float = 0.02,
     iterations: int = 500,
     logs: bool = False,
     log_file: str = "log.csv",
-    target: str = None
+    target: str = None,
 ):
 
     cli.check_file_exist(config_file, "config", True)
@@ -51,6 +57,10 @@ def main(
             "Initialising perturbation generator...",
             PerturbationGenerator,
             config_file,
+            cdpam,
+            avc,
+            freevc,
+            yourtts,
             perturbation_level / 1000,
             cdpam_weight,
             distance_weight,
@@ -58,10 +68,12 @@ def main(
             perturbation_norm_weight,
             frequency_weight,
             avc_weight,
+            freevc_weight,
+            yourtts_weight,
             learning_rate,
             iterations,
             logs,
-            target
+            target,
         )
     except ConfigError as err:
         cli.report_config_error(err)

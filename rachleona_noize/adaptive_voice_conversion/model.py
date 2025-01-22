@@ -2,19 +2,23 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm
+from rachleona_noize.adaptive_voice_conversion.utils import (
+    get_spectrograms,
+    utt_make_frames,
+)
 
-def pad_layer(inp, layer, pad_type='reflect'):
+
+def pad_layer(inp, layer, pad_type="reflect"):
     kernel_size = layer.kernel_size[0]
     if kernel_size % 2 == 0:
-        pad = (kernel_size//2, kernel_size//2 - 1)
+        pad = (kernel_size // 2, kernel_size // 2 - 1)
     else:
-        pad = (kernel_size//2, kernel_size//2)
+        pad = (kernel_size // 2, kernel_size // 2)
     # padding
-    inp = F.pad(inp, 
-            pad=pad,
-            mode=pad_type)
+    inp = F.pad(inp, pad=pad, mode=pad_type)
     out = layer(inp)
     return out
+
 
 def pixel_shuffle_1d(inp, scale_factor=2):
     batch_size, channels, in_width = inp.size()
@@ -25,9 +29,11 @@ def pixel_shuffle_1d(inp, scale_factor=2):
     shuffle_out = shuffle_out.view(batch_size, channels, out_width)
     return shuffle_out
 
+
 def upsample(x, scale_factor=2):
-    x_up = F.interpolate(x, scale_factor=scale_factor, mode='nearest')
+    x_up = F.interpolate(x, scale_factor=scale_factor, mode="nearest")
     return x_up
+
 
 def append_cond(x, cond):
     # x = [batch_size, x_channels, length]
@@ -37,7 +43,8 @@ def append_cond(x, cond):
     out = x * std.unsqueeze(dim=2) + mean.unsqueeze(dim=2)
     return out
 
-def conv_bank(x, module_list, act, pad_type='reflect'):
+
+def conv_bank(x, module_list, act, pad_type="reflect"):
     outs = []
     for layer in module_list:
         out = act(pad_layer(x, layer, pad_type))
@@ -45,19 +52,32 @@ def conv_bank(x, module_list, act, pad_type='reflect'):
     out = torch.cat(outs + [x], dim=1)
     return out
 
+
 def get_act(act):
-    if act == 'relu':
+    if act == "relu":
         return nn.ReLU()
-    elif act == 'lrelu':
+    elif act == "lrelu":
         return nn.LeakyReLU()
     else:
         return nn.ReLU()
 
+
 class SpeakerEncoder(nn.Module):
-    def __init__(self, c_in, c_h, c_out, kernel_size,
-            bank_size, bank_scale, c_bank, 
-            n_conv_blocks, n_dense_blocks, 
-            subsample, act, dropout_rate):
+    def __init__(
+        self,
+        c_in,
+        c_h,
+        c_out,
+        kernel_size,
+        bank_size,
+        bank_scale,
+        c_bank,
+        n_conv_blocks,
+        n_dense_blocks,
+        subsample,
+        act,
+        dropout_rate,
+    ):
         super(SpeakerEncoder, self).__init__()
         self.c_in = c_in
         self.c_h = c_h
@@ -68,16 +88,29 @@ class SpeakerEncoder(nn.Module):
         self.subsample = subsample
         self.act = get_act(act)
         self.conv_bank = nn.ModuleList(
-                [nn.Conv1d(c_in, c_bank, kernel_size=k) for k in range(bank_scale, bank_size + 1, bank_scale)])
+            [
+                nn.Conv1d(c_in, c_bank, kernel_size=k)
+                for k in range(bank_scale, bank_size + 1, bank_scale)
+            ]
+        )
         in_channels = c_bank * (bank_size // bank_scale) + c_in
         self.in_conv_layer = nn.Conv1d(in_channels, c_h, kernel_size=1)
-        self.first_conv_layers = nn.ModuleList([nn.Conv1d(c_h, c_h, kernel_size=kernel_size) for _ \
-                in range(n_conv_blocks)])
-        self.second_conv_layers = nn.ModuleList([nn.Conv1d(c_h, c_h, kernel_size=kernel_size, stride=sub) 
-            for sub, _ in zip(subsample, range(n_conv_blocks))])
+        self.first_conv_layers = nn.ModuleList(
+            [nn.Conv1d(c_h, c_h, kernel_size=kernel_size) for _ in range(n_conv_blocks)]
+        )
+        self.second_conv_layers = nn.ModuleList(
+            [
+                nn.Conv1d(c_h, c_h, kernel_size=kernel_size, stride=sub)
+                for sub, _ in zip(subsample, range(n_conv_blocks))
+            ]
+        )
         self.pooling_layer = nn.AdaptiveAvgPool1d(1)
-        self.first_dense_layers = nn.ModuleList([nn.Linear(c_h, c_h) for _ in range(n_dense_blocks)])
-        self.second_dense_layers = nn.ModuleList([nn.Linear(c_h, c_h) for _ in range(n_dense_blocks)])
+        self.first_dense_layers = nn.ModuleList(
+            [nn.Linear(c_h, c_h) for _ in range(n_dense_blocks)]
+        )
+        self.second_dense_layers = nn.ModuleList(
+            [nn.Linear(c_h, c_h) for _ in range(n_dense_blocks)]
+        )
         self.output_layer = nn.Linear(c_h, c_out)
         self.dropout_layer = nn.Dropout(p=dropout_rate)
 
@@ -123,23 +156,43 @@ class SpeakerEncoder(nn.Module):
         out = self.output_layer(out)
         return out
 
+
 class ContentEncoder(nn.Module):
-    def __init__(self, c_in, c_h, c_out, kernel_size,
-            bank_size, bank_scale, c_bank, 
-            n_conv_blocks, subsample, 
-            act, dropout_rate):
+    def __init__(
+        self,
+        c_in,
+        c_h,
+        c_out,
+        kernel_size,
+        bank_size,
+        bank_scale,
+        c_bank,
+        n_conv_blocks,
+        subsample,
+        act,
+        dropout_rate,
+    ):
         super(ContentEncoder, self).__init__()
         self.n_conv_blocks = n_conv_blocks
         self.subsample = subsample
         self.act = get_act(act)
         self.conv_bank = nn.ModuleList(
-                [nn.Conv1d(c_in, c_bank, kernel_size=k) for k in range(bank_scale, bank_size + 1, bank_scale)])
+            [
+                nn.Conv1d(c_in, c_bank, kernel_size=k)
+                for k in range(bank_scale, bank_size + 1, bank_scale)
+            ]
+        )
         in_channels = c_bank * (bank_size // bank_scale) + c_in
         self.in_conv_layer = nn.Conv1d(in_channels, c_h, kernel_size=1)
-        self.first_conv_layers = nn.ModuleList([nn.Conv1d(c_h, c_h, kernel_size=kernel_size) for _ \
-                in range(n_conv_blocks)])
-        self.second_conv_layers = nn.ModuleList([nn.Conv1d(c_h, c_h, kernel_size=kernel_size, stride=sub) 
-            for sub, _ in zip(subsample, range(n_conv_blocks))])
+        self.first_conv_layers = nn.ModuleList(
+            [nn.Conv1d(c_h, c_h, kernel_size=kernel_size) for _ in range(n_conv_blocks)]
+        )
+        self.second_conv_layers = nn.ModuleList(
+            [
+                nn.Conv1d(c_h, c_h, kernel_size=kernel_size, stride=sub)
+                for sub, _ in zip(subsample, range(n_conv_blocks))
+            ]
+        )
         self.norm_layer = nn.InstanceNorm1d(c_h, affine=False)
         self.mean_layer = nn.Conv1d(c_h, c_out, kernel_size=1)
         self.std_layer = nn.Conv1d(c_h, c_out, kernel_size=1)
@@ -169,25 +222,43 @@ class ContentEncoder(nn.Module):
         log_sigma = pad_layer(out, self.std_layer)
         return mu, log_sigma
 
+
 class Decoder(nn.Module):
-    def __init__(self, 
-            c_in, c_cond, c_h, c_out, 
-            kernel_size,
-            n_conv_blocks, upsample, act, sn, dropout_rate):
+    def __init__(
+        self,
+        c_in,
+        c_cond,
+        c_h,
+        c_out,
+        kernel_size,
+        n_conv_blocks,
+        upsample,
+        act,
+        sn,
+        dropout_rate,
+    ):
         super(Decoder, self).__init__()
         self.n_conv_blocks = n_conv_blocks
         self.upsample = upsample
         self.act = get_act(act)
         f = spectral_norm if sn else lambda x: x
         self.in_conv_layer = f(nn.Conv1d(c_in, c_h, kernel_size=1))
-        self.first_conv_layers = nn.ModuleList([f(nn.Conv1d(c_h, c_h, kernel_size=kernel_size)) for _ \
-                in range(n_conv_blocks)])
-        self.second_conv_layers = nn.ModuleList(\
-                [f(nn.Conv1d(c_h, c_h * up, kernel_size=kernel_size)) \
-                for _, up in zip(range(n_conv_blocks), self.upsample)])
+        self.first_conv_layers = nn.ModuleList(
+            [
+                f(nn.Conv1d(c_h, c_h, kernel_size=kernel_size))
+                for _ in range(n_conv_blocks)
+            ]
+        )
+        self.second_conv_layers = nn.ModuleList(
+            [
+                f(nn.Conv1d(c_h, c_h * up, kernel_size=kernel_size))
+                for _, up in zip(range(n_conv_blocks), self.upsample)
+            ]
+        )
         self.norm_layer = nn.InstanceNorm1d(c_h, affine=False)
         self.conv_affine_layers = nn.ModuleList(
-                [f(nn.Linear(c_cond, c_h * 2)) for _ in range(n_conv_blocks*2)])
+            [f(nn.Linear(c_cond, c_h * 2)) for _ in range(n_conv_blocks * 2)]
+        )
         self.out_conv_layer = f(nn.Conv1d(c_h, c_out, kernel_size=1))
         self.dropout_layer = nn.Dropout(p=dropout_rate)
 
@@ -200,29 +271,30 @@ class Decoder(nn.Module):
         for l in range(self.n_conv_blocks):
             y = pad_layer(out, self.first_conv_layers[l])
             y = self.norm_layer(y)
-            y = append_cond(y, self.conv_affine_layers[l*2](cond))
+            y = append_cond(y, self.conv_affine_layers[l * 2](cond))
             y = self.act(y)
             y = self.dropout_layer(y)
             y = pad_layer(y, self.second_conv_layers[l])
             if self.upsample[l] > 1:
                 y = pixel_shuffle_1d(y, scale_factor=self.upsample[l])
             y = self.norm_layer(y)
-            y = append_cond(y, self.conv_affine_layers[l*2+1](cond))
+            y = append_cond(y, self.conv_affine_layers[l * 2 + 1](cond))
             y = self.act(y)
             y = self.dropout_layer(y)
             if self.upsample[l] > 1:
-                out = y + upsample(out, scale_factor=self.upsample[l]) 
+                out = y + upsample(out, scale_factor=self.upsample[l])
             else:
                 out = y + out
         out = pad_layer(out, self.out_conv_layer)
         return out
 
+
 class AE(nn.Module):
     def __init__(self, config):
         super(AE, self).__init__()
-        self.speaker_encoder = SpeakerEncoder(**config['SpeakerEncoder']) 
-        self.content_encoder = ContentEncoder(**config['ContentEncoder'])
-        self.decoder = Decoder(**config['Decoder'])
+        self.speaker_encoder = SpeakerEncoder(**config["SpeakerEncoder"])
+        self.content_encoder = ContentEncoder(**config["ContentEncoder"])
+        self.decoder = Decoder(**config["Decoder"])
 
     def forward(self, x):
         emb = self.speaker_encoder(x)
@@ -237,6 +309,8 @@ class AE(nn.Module):
         dec = self.decoder(mu, emb)
         return dec
 
-    def get_speaker_embeddings(self, x):
+    def get_speaker_embeddings(self, x, hp, sampling_rate, device):
+        mel, _ = get_spectrograms(x, hp, sampling_rate, device)
+        x = utt_make_frames(mel, hp.frame_size)
         emb = self.speaker_encoder(x)
         return emb
