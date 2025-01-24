@@ -78,7 +78,8 @@
     "n_iter": 100, 
     "preemphasis": 0.97, 
     "max_db": 100,
-    "ref_db": 20
+    "ref_db": 20,
+    "top_db": 15
   }
   
 }

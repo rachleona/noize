@@ -70,7 +70,7 @@ class SpeakerEncoder(nn.Module):
         return embeds_raw / torch.norm(embeds_raw, dim=1, keepdim=True)
 
     @staticmethod
-    def compute_partial_slices(n_samples: int, rate, min_coverage):
+    def compute_partial_slices(n_samples: int, rate, min_coverage, sampling_rate):
         """
         Computes where to split an utterance waveform and its corresponding mel spectrogram to
         obtain partial utterances of <partials_n_frames> each. Both the waveform and the
@@ -99,7 +99,7 @@ class SpeakerEncoder(nn.Module):
         # Compute how many frames separate two partial utterances
         samples_per_frame = int((sampling_rate * mel_window_step / 1000))
         n_frames = int(math.ceil((n_samples + 1) / samples_per_frame))
-        frame_step = int(math.round((sampling_rate / rate) / samples_per_frame))
+        frame_step = int(round((sampling_rate / rate) / samples_per_frame))
         assert 0 < frame_step, "The rate is too high"
         assert (
             frame_step <= partials_n_frames
@@ -162,7 +162,7 @@ class SpeakerEncoder(nn.Module):
         # Compute where to split the utterance into partials and pad the waveform with zeros if
         # the partial utterances cover a larger range.
         wav_slices, mel_slices = self.compute_partial_slices(
-            len(wav), rate, min_coverage
+            len(wav), rate, min_coverage, sampling_rate
         )
         max_wave_length = wav_slices[-1].stop
         if max_wave_length >= len(wav):
@@ -170,14 +170,27 @@ class SpeakerEncoder(nn.Module):
             wav = padding(wav)
 
         # Split the utterance into partials and forward them through the model
-        transform = MelSpectrogram(sampling_rate)
-        mel = transform(wav)
-        mels = torch.FloatTensor([mel[s] for s in mel_slices]).to(self.device)
+        transform = MelSpectrogram(
+            sampling_rate,
+            n_fft=int(sampling_rate * mel_window_length / 1000),
+            hop_length=int(sampling_rate * mel_window_step / 1000),
+            n_mels=mel_n_channels,
+            pad_mode="constant",
+            mel_scale="slaney",
+            norm="slaney",
+        )
+        mel = transform(wav).T
+
+        mels = torch.zeros(
+            (len(mel_slices), mel_slices[0].stop - mel_slices[0].start, mel.shape[1])
+        ).to(self.device)
+        for i, s in enumerate(mel_slices):
+            mels[i] += mel[s]
         partial_embeds = self(mels)
 
         # Compute the utterance embedding from the partial embeddings
         raw_embed = torch.mean(partial_embeds, axis=0)
-        embed = raw_embed / torch.linalg.vector_normnorm(raw_embed, 2)
+        embed = raw_embed / torch.linalg.vector_norm(raw_embed, 2)
 
         if return_partials:
             return embed, partial_embeds, wav_slices

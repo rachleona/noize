@@ -60,6 +60,7 @@ def split_audio(audio_srs, device, sampling_rate):
         if len(audio_seg) == 0:
             continue
 
+        # todo trim silence?
         seg_tensor = torch.FloatTensor(audio_seg).to(device)
 
         sr_constant = sampling_rate / 1000
@@ -223,8 +224,8 @@ def get_hparams_from_file(config_path):
     ):
         raise ConfigError("Model config is missing key entries")
 
-    data_params = HParams(**config["data"])
-    model_params = HParams(**config["model"])
+    data_params = HParams(**config["ov_data"])
+    model_params = HParams(**config["ov_model"])
     avc_hp = HParams(**config["avc_hp"])
     avc_enc_params = config["avc_encoder"]
 

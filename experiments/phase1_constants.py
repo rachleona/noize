@@ -12,16 +12,16 @@ pairs = [("sof_00295", "som_01523"),
 
 # cdpam weight
 for x, y in pairs:
-    for i in range(10, 201, 10):
+    for i in range(1, 21, 5):
         noize(f"clips/{x}.wav", "outputs",
-              output_filename=f"protected_{x}_c{i / 100}.wav",
+              output_filename=f"protected_{x}_c{i / 10}.wav",
               logs=True,
               cdpam_weight=i / 100,
               iterations=1000,
-              log_file=f"logs/{x}_c{i / 100}.csv",
+              log_file=f"logs/{x}_c{i / 10}.csv",
               target=f"voices/{y}.pth")
         
-    for i in range(0, 201, 10):
+    for i in range(0, 201, 50):
         noize(f"clips/{x}.wav", "outputs",
               output_filename=f"protected_{x}_c{i}.wav",
               logs=True,
