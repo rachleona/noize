@@ -1,4 +1,5 @@
 import csv
+import torch
 
 
 class Logger:
@@ -8,10 +9,12 @@ class Logger:
             self.__logs[i] = []
 
     def log(self, key, value):
+        if isinstance(value, torch.Tensor):
+            value = value.item()
         self.__logs[key].append(value)
 
     def save(self, filename):
         with open(filename, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             for k in self.__logs:
-                writer.writerow([k] + self._logs[k])
+                writer.writerow([k] + self.__logs[k])

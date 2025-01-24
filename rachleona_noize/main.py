@@ -11,7 +11,7 @@ from typing import Optional
 from typing_extensions import Annotated
 from rachleona_noize.utils import split_audio, ConfigError
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_enable=False)
 
 # unclutter CLI by hiding warnings from libraries we have no direct control over
 # comment during development

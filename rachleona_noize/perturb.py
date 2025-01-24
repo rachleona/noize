@@ -108,6 +108,8 @@ class PerturbationGenerator:
             )
 
         self.model.load_state_dict(checkpoint_dict["model"], strict=False)
+        self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
+        self.af_points = os.path.join(pths_location, "points.csv")
 
         voice_bank_dir = os.path.join(pths_location, "voices", "*.pth")
         files = glob(voice_bank_dir)
@@ -127,9 +129,11 @@ class PerturbationGenerator:
                     warn(f"Data loaded from {v} is not a valid voice tensor")
                     continue
                 self.voices[k] += se
+            self.target = None
         else:
-            self.target = torch.load(target).to(self.DEVICE)
-
+            self.target = torch.load(
+                target, map_location=torch.device(self.DEVICE), weights_only=True
+            )
         # modules to include in loss function
         self.CDPAM_QUALITY = cdpam
         self.AVC_LOSS = avc
@@ -140,7 +144,7 @@ class PerturbationGenerator:
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
         self.SNR_WEIGHT = snr_wieght
-        self.PETURBATION_NORM_WEIGHT = perturbation_norm_weight
+        self.PERTURBATION_NORM_WEIGHT = perturbation_norm_weight
         self.FREQUENCY_WEIGHT = frequency_weight
         self.AVC_WEIGHT = avc_weight
         self.FREEVC_WEIGHT = freevc_weight
@@ -167,6 +171,8 @@ class PerturbationGenerator:
                 log_values.append("p_norm")
 
             self.logger = Logger(*log_values)
+        else:
+            self.logger = None
 
     def generate_loss_function(self, src, src_se):
         """
@@ -206,7 +212,7 @@ class PerturbationGenerator:
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
 
-            quality_term = quality_func(new_srs_tensor, perturbation)
+            quality_term = quality_func(new_srs_tensor, scaled)
             dist_term = 0
             for m in loss_modules:
                 dist_term += m.loss(new_srs_tensor)

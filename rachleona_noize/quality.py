@@ -15,7 +15,7 @@ def generate_cdpam_quality_func(src, perturber):
         cdpam_val = cdpam_loss.forward(source_cdpam, cdpam_prep(new_tensor))
 
         if perturber.logger is not None:
-            perturber.logger("cdpam", cdpam_val)
+            perturber.logger.log("cdpam", cdpam_val)
 
         return perturber.CDPAM_WEIGHT * cdpam_val
 
@@ -25,7 +25,7 @@ def generate_cdpam_quality_func(src, perturber):
 def generate_antifake_quality_func(perturber):
     xs = []
     ys = []
-    with open(os.path.join(perturber.pths_location, "points.csv"), "r") as file:
+    with open(perturber.af_points) as file:
         reader = csv.reader(file)
         header = next(reader)
         for row in reader:
@@ -48,7 +48,6 @@ def generate_antifake_quality_func(perturber):
 
         # ys is scaled to 0-1 inversely, with originally large values close to 0, vice versa
         ys_scaled = [1 - (item + 20) / 100 for item in ys]
-        ys = ys_scaled
 
         # for each 201 windows, 201 bc fft window is defaulted to 400
         for i in range(0, diff_spec.shape[0]):
@@ -61,8 +60,8 @@ def generate_antifake_quality_func(perturber):
             # use linear interpolation
             for j, x in enumerate(xs):
                 if xs[j] < probe_freq and xs[j + 1] > probe_freq:
-                    weight_freq = ys[j] + (
-                        (probe_freq - xs[j]) * (ys[j + 1] - ys[j])
+                    weight_freq = ys_scaled[j] + (
+                        (probe_freq - xs[j]) * (ys_scaled[j + 1] - ys_scaled[j])
                     ) / (xs[j + 1] - xs[j])
 
             diff_spec[i] *= weight_freq
@@ -71,9 +70,9 @@ def generate_antifake_quality_func(perturber):
         quality_frequency = torch.sum(diff_spec) / len(diff_spec)
 
         if perturber.logger is not None:
-            perturber.logger("snr", quality_snr)
-            perturber.logger("p_norm", quality_l2_norm)
-            perturber.logger("freq", quality_frequency)
+            perturber.logger.log("snr", quality_snr)
+            perturber.logger.log("p_norm", quality_l2_norm)
+            perturber.logger.log("freq", quality_frequency)
 
         # aggregate loss
         return (
