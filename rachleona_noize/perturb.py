@@ -24,18 +24,42 @@ class PerturbationGenerator:
 
     Attributes
     ----------
-    data_params : dict
+    data_params : HParams
         a subset of configs for handling audio data e.g. sampling rate
+    avc_enc_params: dict
+        a subset of configs for setting up avc speaker encoder
+    avc_hp: HParams
+        a subset of configs for audio preprocessing needed by avc
+    avc_ckpt: Path
+        the path to the checkpoints for the avc speaker encoder model
+    af_points: Path
+        the path to data used in antifake quality term for frequency filtering
     hann_window: dict
-        a dictionary for recording hann_window values used in spectrogram related calculations
+        a dictionary for recording hann_window values used in OpenVoice spectrogram related calculations
     model : SynthesizerTrn
         OpenVoice core voice extraction and conversion model object to be used in loss function
+    target : torch.Tensor or None
+        the OpenVoice tone colour embedding corresponding to the target voice used to initialise perturbations
     voices : torch.Tensor
         matrix containing all saved voice tensors to be used in selecting initial parameters
+    logger : Logger or None
+        logger instance for recording loss values (and its components) every iteration
     CDPAM_WEIGHT : int
         the weight for the cdpam value between original clip and perturbed clip in the loss function
     DISTANCE_WEIGHT : int
-        the weight for the distance between voice embeddings in the loss function
+        the weight for the distance between OpenVoice voice embeddings in the loss function
+    SNR_WEIGHT : float
+        the weight for the noise-to-ratio term in quality calculations
+    PERTURBATION_NORM_WEIGHT : float
+        the weight for the overall perturbation magnitude term in quality calculations
+    FREQUENCY_WEIGHT : float
+        the weight for the frequence filter term in quality calculations
+    AVC_WEIGHT : float
+        the weight of the distance between AVC voice embedings in the loss function
+    FREEVC_WEIGHT : float
+        the weight of the distance between freeVC voice embedings in the loss function
+    YOURTTS_WEIGHT : float
+        the weight of the distance between YourTTS voice embedings in the loss function
     LEARNING_RATE : float
         learning rate for main loss function that optimises perturbation value
     PERTURBATION_LEVEL : float
@@ -90,6 +114,7 @@ class PerturbationGenerator:
         self.avc_hp = avc_hp
         self.hann_window = {}
 
+        # set up OpenVoice model
         self.model = SynthesizerTrn(
             len(getattr(misc, "symbols", [])),
             data_params.filter_length // 2 + 1,
@@ -106,11 +131,14 @@ class PerturbationGenerator:
             raise ConfigError(
                 "Cannot find checkpoint tensor in directory given in config file"
             )
-
         self.model.load_state_dict(checkpoint_dict["model"], strict=False)
+
+        # set up paths for weights and info needed for other models
         self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
         self.af_points = os.path.join(pths_location, "points.csv")
 
+        # set up target voice selection if no target voice given
+        # only affects starting parameters and not the actual numerical optimisation process
         voice_bank_dir = os.path.join(pths_location, "voices", "*.pth")
         files = glob(voice_bank_dir)
 
@@ -171,6 +199,7 @@ class PerturbationGenerator:
         self.PERTURBATION_LEVEL = perturbation_level
         self.ITERATIONS = iterations
 
+        # set up logging if asked for
         if logs:
             self.logger = Logger(*log_values)
         else:
@@ -196,20 +225,16 @@ class PerturbationGenerator:
             Will be used in calculating starting parameter for loss minimisation
         """
 
-        if self.CDPAM_QUALITY:
-            quality_func = generate_cdpam_quality_func(src, self)
-        else:
-            quality_func = generate_antifake_quality_func(self)
+        # choose a method of calculating quality term
+        quality_func = self.quality_func_generator(src["tensor"], self)
 
+        # initialise all necessary encoders for calculating distance loss
         loss_modules = [generate_openvoice_loss(src_se, self)]
 
-        if self.AVC_LOSS:
-            generate_avc_loss(src["tensor"], self)
-        if self.FREEVC_LOSS:
-            generate_freevc_loss(src["tensor"], self)
-        if self.YOURTTS_LOSS:
-            generate_yourtts_loss(src["tensor"], self)
+        for f in self.loss_generators:
+            loss_modules.append(f(src["tensor"], self))
 
+        # combine all to create loss function to be used for this segment
         def loss(perturbation):
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
