@@ -8,8 +8,25 @@ from rachleona_noize.utils import cdpam_prep
 
 
 def generate_cdpam_quality_func(src, perturber):
+    """
+    generates function to calculate the quality term in perturbation generation loss
+    uses cdpam to estimate quality difference from original
+
+    Parameters
+    ----------
+    src : torch.Tensor
+        source audio tensor to compare to
+    perturber : PerturbationGenerator
+        perturber to be used with the generated quality function
+
+    Returns
+    -------
+    function (new_tensor: torch.Tensor, perturbation: torch.Tensor) -> torch.Tensor
+        returns cdpam calculated quality difference between src and new_tensor
+        (given new_tensor = src + perturbation)
+    """
     cdpam_loss = cdpam.CDPAM(dev=perturber.DEVICE)
-    source_cdpam = cdpam_prep(src["tensor"])
+    source_cdpam = cdpam_prep(src)
 
     def f(new_tensor, perturbation):
         cdpam_val = cdpam_loss.forward(source_cdpam, cdpam_prep(new_tensor))
@@ -22,7 +39,25 @@ def generate_cdpam_quality_func(src, perturber):
     return f
 
 
-def generate_antifake_quality_func(perturber):
+def generate_antifake_quality_func(src, perturber):
+    """
+    generates function to calculate the quality term in perturbation generation loss
+    combines magnitude of perturbation, signal-to-noise ratio and frequency filtering
+    based on quality term used in AntiFake project
+
+    Parameters
+    ----------
+    src : torch.Tensor
+        source audio tensor to compare to
+    perturber : PerturbationGenerator
+        perturber to be used with the generated quality function
+
+    Returns
+    -------
+    function (new_tensor: torch.Tensor, perturbation: torch.Tensor) -> torch.Tensor
+        returns calculated quality difference between src and new_tensor
+        (given new_tensor = src + perturbation)
+    """
     xs = []
     ys = []
     with open(perturber.af_points) as file:

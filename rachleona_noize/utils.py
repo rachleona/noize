@@ -179,6 +179,10 @@ def get_hparams_from_file(config_path):
         the path to the directory where the OpenVoice checkpoint and target voice tensors are stored
     misc_config: HParams
         object containing all other configs not covered in the above
+    avc_enc_params: dict
+        encoder parameters needed for initialising avc speaker encoder
+    avc_hp: HParams
+        configs used for preprocessing audio data for avc speaker encoder
 
     Raises
     ------
