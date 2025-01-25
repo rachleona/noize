@@ -15,7 +15,7 @@ from rich.prompt import Prompt
 
 def with_spinner(desc, func, *args):
     """
-    Calls the given function with a loading spinner with task descriptions
+    Calls the given function with a CLI loading spinner attached
     Loading animation goes away once the function finishes running
 
     Parameters

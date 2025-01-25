@@ -10,7 +10,33 @@ from TTS.api import TTS
 
 
 class EncoderLoss:
-    def __init__(self, src_emb, f, log_name, weight, logger):
+    """
+    Unifies interface for interacting with different encoders used in perturbation loss function
+
+    ...
+
+    Attributes
+    ----------
+    src_emb : torch.Tensor
+        voice embedding from the source audio to be used in calculating embedding distance
+    emb_f: function (torch.Tensor) -> torch.Tensor
+        function for extracting the embedding of a given audio time series tensor
+    weight: float
+        the weight to multiply the calculated embedding distance with
+    logger: Logger or None, default None
+        logger for logging distance values
+    log_name: str, default ""
+        the key to the log value is logger is given
+
+    Methods
+    -------
+    loss(new_tensor)
+        takes an audio time series tensor and calculates the appropriate loss term
+        uses simple euclidean distance
+
+    """
+
+    def __init__(self, src_emb, f, weight, log_name="", logger=None):
         self.src_emb = src_emb
         self.emb_f = f
         self.log_name = log_name
@@ -28,16 +54,47 @@ class EncoderLoss:
 
 
 def generate_openvoice_loss(src_se, perturber):
+    """
+    Generates EncoderLoss instance based on current source clip and perturber config
+    Uses OpenVoice tone colour extractor
+
+    Parameters
+    ----------
+    src_se : torch.Tensor
+        OpenVoice tone colour embedding of the source clip
+    perturber : PerturbationGenerator
+        perturbation generator instance that is going to use the loss function
+
+    Returns
+    -------
+    EncoderLoss
+    """
     return EncoderLoss(
         src_se,
         lambda n: extract_se(n, perturber),
-        "dist",
         perturber.DISTANCE_WEIGHT,
+        "dist",
         perturber.logger,
     )
 
 
 def generate_yourtts_loss(src, perturber):
+    """
+    Generates EncoderLoss instance based on current source clip and perturber config
+    Uses coqui ViTS speaker encoder
+    (H/ASP speaker recognition model based on ResNet architecture)
+
+    Parameters
+    ----------
+    src : torch.Tensor
+        source audio time series
+    perturber : PerturbationGenerator
+        perturbation generator instance that is going to use the loss function
+
+    Returns
+    -------
+    EncoderLoss
+    """
     # suppress verbose output from model initialisation
     text_trap = io.StringIO()
     sys.stdout = text_trap
@@ -55,26 +112,56 @@ def generate_yourtts_loss(src, perturber):
     return EncoderLoss(
         src_emb,
         lambda n: ytts_emb(model, n),
-        "yourtts",
         perturber.YOURTTS_WEIGHT,
+        "yourtts",
         perturber.logger,
     )
 
 
 def generate_freevc_loss(src, perturber):
+    """
+    Generates EncoderLoss instance based on current source clip and perturber config
+    Uses coqui freeVC speaker encoder
+
+    Parameters
+    ----------
+    src : torch.Tensor
+        source audio time series
+    perturber : PerturbationGenerator
+        perturbation generator instance that is going to use the loss function
+
+    Returns
+    -------
+    EncoderLoss
+    """
     model = FvcEncoder(perturber.DEVICE, False)
     src_emb = model.embed_utterance(src, perturber.data_params.sampling_rate)
 
     return EncoderLoss(
         src_emb,
         lambda n: model.embed_utterance(n, perturber.data_params.sampling_rate),
-        "freevc",
         perturber.FREEVC_WEIGHT,
+        "freevc",
         perturber.logger,
     )
 
 
 def generate_avc_loss(src, perturber):
+    """
+    Generates EncoderLoss instance based on current source clip and perturber config
+    Uses speaker encoder from adaIN model
+
+    Parameters
+    ----------
+    src : torch.Tensor
+        source audio time series
+    perturber : PerturbationGenerator
+        perturbation generator instance that is going to use the loss function
+
+    Returns
+    -------
+    EncoderLoss
+    """
     model = AvcEncoder(**perturber.avc_enc_params).to(perturber.DEVICE)
     model.load_state_dict(
         torch.load(
@@ -88,4 +175,4 @@ def generate_avc_loss(src, perturber):
     )
     src_emb = get_emb(src)
 
-    return EncoderLoss(src_emb, get_emb, "avc", perturber.AVC_WEIGHT, perturber.logger)
+    return EncoderLoss(src_emb, get_emb, perturber.AVC_WEIGHT, "avc", perturber.logger)
