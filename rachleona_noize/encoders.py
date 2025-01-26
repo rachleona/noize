@@ -50,7 +50,7 @@ class EncoderLoss:
         if self.logger is not None:
             norm = torch.linalg.vector_norm(self.src_emb - new_emb)
             elu = torch.nn.ELU()
-            self.logger.log(self.log_name, elu(1000 - norm))
+            self.logger.log(self.log_name, elu(30 - norm))
 
         return -self.weight * euc_dist
 
