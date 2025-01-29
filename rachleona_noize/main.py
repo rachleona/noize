@@ -20,6 +20,9 @@ warnings.filterwarnings(
     "ignore",
     message=".*torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm.*",
 )
+
+
+# default constants
 dirpath = os.path.dirname(__file__)
 default_config_path = os.path.join(dirpath, "config.json")
 
@@ -28,27 +31,63 @@ default_config_path = os.path.join(dirpath, "config.json")
 def main(
     filepath: Annotated[Path, typer.Argument()] = None,
     output_dir: Annotated[str, typer.Argument()] = None,
+    perturbation_level: int = 3,
     config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
     output_filename: str = None,
-    cdpam=True,
+    cdpam: bool = True,
     avc: bool = True,
     freevc: bool = True,
     yourtts: bool = True,
-    perturbation_level: int = 5,
+    logs: bool = False,
+    log_file: str = "log.csv",
+    learning_rate: float = 0.02,
+    iterations: int = 300,
+    target: str = None,
     cdpam_weight: int = 50,
     distance_weight: int = 2,
     snr_weight: float = 0.005,
     perturbation_norm_weight: float = 0.05,
     frequency_weight: float = 0.3,
-    avc_weight: float = 1,
-    freevc_weight: float = 1,
-    yourtts_weight: float = 1,
-    learning_rate: float = 0.02,
-    iterations: int = 500,
-    logs: bool = False,
-    log_file: str = "log.csv",
-    target: str = None,
+    avc_weight: float = 25,
+    freevc_weight: float = 25,
+    yourtts_weight: float = 25,
 ):
+    """
+    Uses whisper model to split audio clips into multiple segments
+    Adapted from OpenVoice code to process audio data directly instead of from files
+
+    Parameters
+    ----------
+    filepath: Path
+        path to the audio file to apply protection to
+    output_dir: str
+        name of output directory, will be created if no already exists
+    config_file: Path, optional
+        path to the config file, use official repo one by default
+    output_filename: str, optional
+        what to name the protected file, uses protected_<filpath> by default
+    cdpam: bool
+        whether to use cdpam quality term, default False to use AntiFake quality term
+    avc: bool
+        whether to use adaIN encoder in perturbation calculation, default True
+    freevc: bool
+        whether to use freeVC encoder in perturbation calculation, default True
+    yourtts: bool
+        whether to use YourTTS encoder in perturbation calculation, default True
+    perturbation_level: int = 3
+        perturbation level between 1-5, controls how strong the noise applied is
+    learning_rate: float
+        learning rate to use for optimisation process, default 0.02
+    iterations: int
+        optimisation iterations (per audio segment), default 300
+    logs: bool,
+        whether to make logs of values used in loss function, default False
+    log_file: str
+        name for log file is log = True
+    target: str
+        path to a saved tensor of a OpenVoice tone colour embedding, used for initiating optimisation
+        default None
+    """
 
     cli.check_file_exist(config_file, "config", True)
 
@@ -99,11 +138,17 @@ def main(
         perturber.logger.save(log_file)
 
     if output_filename == None:
-        output_filename = filepath
-    filename = re.search("[\\w-]+?(?=\\.)", os.path.basename(output_filename)).group(0)
+        output_filename = re.search(
+            "[\\w-]+?(?=\\.)", os.path.basename(filepath)
+        ).group(0)
+        filename = f"protected_{ output_filename }"
+    else:
+        filename = re.search(
+            "[\\w-]+?(?=\\.)", os.path.basename(output_filename)
+        ).group(0)
 
     os.makedirs(output_dir, exist_ok=True)
-    res_filename = os.path.join(output_dir, f"protected_{ filename }.wav")
+    res_filename = os.path.join(output_dir, f"{ filename }.wav")
 
     cli.with_spinner(
         "Writing protected wav to output file...",

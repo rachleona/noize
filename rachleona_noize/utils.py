@@ -1,4 +1,5 @@
 import json
+import librosa
 import os
 import torch
 
@@ -56,15 +57,22 @@ def split_audio(audio_srs, device, sampling_rate):
 
         # left 0.08s for each audios
         audio_seg = audio_srs[start:end]
+        audio_seg, ind = librosa.effects.trim(audio_seg)
 
         if len(audio_seg) == 0:
             continue
 
-        # todo trim silence?
         seg_tensor = torch.FloatTensor(audio_seg).to(device)
 
         sr_constant = sampling_rate / 1000
-        res.append({"start": start, "end": end, "tensor": seg_tensor, "id": k + 1})
+        res.append(
+            {
+                "start": start + ind[0],
+                "end": start + ind[1],
+                "tensor": seg_tensor,
+                "id": k + 1,
+            }
+        )
 
         if k < len(segments) - 1:
             start = int(max(0, segments[k + 1].start * 1000 - 80) * sr_constant)
@@ -111,6 +119,7 @@ def choose_target(src_se, voices):
     -------
     torch.Tensor
         the tensor in the voices given that is furthest away from src_se in the feature space
+        (euclidean distance)
     """
     diff = voices - src_se
     s = torch.sum(diff**2, 2)
