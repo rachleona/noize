@@ -178,7 +178,7 @@ class SpeakerEncoder(nn.Module):
             pad_mode="constant",
             mel_scale="slaney",
             norm="slaney",
-        )
+        ).to(self.device)
         mel = transform(wav).T
 
         mels = torch.zeros(

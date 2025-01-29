@@ -13,7 +13,7 @@ def utt_make_frames(x, frame_size):
 
 def get_spectrograms(y, hp, sr, device):
     # Preemphasis
-    y = y - torch.cat((torch.zeros(1), hp.preemphasis * y[:-1]))
+    y = y - torch.cat((torch.zeros(1).to(device), hp.preemphasis * y[:-1]))
 
     # stft
     win_length = int(sr * hp.frame_length)
@@ -23,7 +23,7 @@ def get_spectrograms(y, hp, sr, device):
         hop_length=int(sr * hp.frame_shift),
         win_length=win_length,
         pad_mode="constant",
-        window=torch.hann_window(win_length),
+        window=torch.hann_window(win_length).to(device),
         return_complex=True,
     )
     # magnitude spectrogram
@@ -37,8 +37,8 @@ def get_spectrograms(y, hp, sr, device):
     mel = mel_basis @ mag  # (n_mels, t)
 
     # to decibel
-    mel = 20 * torch.log10(torch.maximum(torch.FloatTensor([1e-5]), mel))
-    mag = 20 * torch.log10(torch.maximum(torch.FloatTensor([1e-5]), mag))
+    mel = 20 * torch.log10(torch.maximum(torch.FloatTensor([1e-5]).to(device), mel))
+    mag = 20 * torch.log10(torch.maximum(torch.FloatTensor([1e-5]).to(device), mag))
 
     # normalize
     mel = torch.clamp((mel - hp.ref_db + hp.max_db) / hp.max_db, 1e-8, 1)

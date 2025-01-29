@@ -100,14 +100,13 @@ def generate_yourtts_loss(src, perturber):
     sys.stdout = text_trap
 
     tts = TTS(
-        "tts_models/multilingual/multi-dataset/your_tts",
-        gpu=(perturber.DEVICE != "cpu"),
-    )
+        "tts_models/multilingual/multi-dataset/your_tts"
+    ).to(perturber.DEVICE)
 
     # restore normal stdout
     sys.stdout = sys.__stdout__
     model = tts.synthesizer.tts_model.speaker_manager.encoder
-    src_emb = ytts_emb(model, src)
+    src_emb = ytts_emb(model, src).detach()
 
     return EncoderLoss(
         src_emb,
@@ -135,7 +134,7 @@ def generate_freevc_loss(src, perturber):
     EncoderLoss
     """
     model = FvcEncoder(perturber.DEVICE, False)
-    src_emb = model.embed_utterance(src, perturber.data_params.sampling_rate)
+    src_emb = model.embed_utterance(src, perturber.data_params.sampling_rate).detach()
 
     return EncoderLoss(
         src_emb,
@@ -173,6 +172,6 @@ def generate_avc_loss(src, perturber):
     get_emb = lambda x: model.get_speaker_embeddings(
         x, perturber.avc_hp, perturber.data_params.sampling_rate, perturber.DEVICE
     )
-    src_emb = get_emb(src)
+    src_emb = get_emb(src).detach()
 
     return EncoderLoss(src_emb, get_emb, perturber.AVC_WEIGHT, "avc", perturber.logger)
