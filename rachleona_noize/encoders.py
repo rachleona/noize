@@ -1,6 +1,7 @@
 import io
 import sys
 import torch
+import torchaudio
 
 from rachleona_noize.ov_adapted import extract_se
 from rachleona_noize.adaptive_voice_conversion.model import SpeakerEncoder as AvcEncoder
@@ -99,7 +100,7 @@ def generate_yourtts_loss(src, perturber):
     text_trap = io.StringIO()
     sys.stdout = text_trap
 
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(perturber.DEVICE)
+    tts = TTS("tts_models/multilingual/multi-dataset/yourtts").to(perturber.DEVICE)
 
     # restore normal stdout
     sys.stdout = sys.__stdout__
@@ -173,3 +174,43 @@ def generate_avc_loss(src, perturber):
     src_emb = get_emb(src).detach()
 
     return EncoderLoss(src_emb, get_emb, perturber.AVC_WEIGHT, "avc", perturber.logger)
+
+def generate_xtts_loss(src, perturber):
+    """
+    Generates EncoderLoss instance based on current source clip and perturber config
+    Uses coqui ViTS speaker encoder
+    (H/ASP speaker recognition model based on ResNet architecture)
+
+    Parameters
+    ----------
+    src : torch.Tensor
+        source audio time series
+    perturber : PerturbationGenerator
+        perturbation generator instance that is going to use the loss function
+
+    Returns
+    -------
+    EncoderLoss
+    """
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(perturber.DEVICE)
+
+    model = tts.synthesizer.tts_model
+    def get_emb(audio):
+        audio = torch.unsqueeze(audio, 0)
+        audio = audio[:, : perturber.data_params.sampling_rate * 30].to(model.device)
+        
+        audio_16k = torchaudio.functional.resample(audio, perturber.data_params.sampling_rate, 16000)
+        return (
+            model.hifigan_decoder.speaker_encoder.forward(audio_16k.to(model.device), l2_norm=True)
+            .unsqueeze(-1)
+            .to(model.device)
+        )
+    src_emb = get_emb(src).detach()
+
+    return EncoderLoss(
+        src_emb,
+        get_emb,
+        perturber.YOURTTS_WEIGHT,
+        "xtts",
+        perturber.logger,
+    )
