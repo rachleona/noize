@@ -312,16 +312,17 @@ class PerturbationGenerator:
             source_se = extract_se(segment["tensor"], self).detach()
             loss_f = self.generate_loss_function(segment, source_se)
 
-            if self.target is None:
-                target_se = choose_target(source_se, self.voices)
-            else:
-                target_se = self.target
+            # if self.target is None:
+            #     target_se = choose_target(source_se, self.voices)
+            # else:
+            #     target_se = self.target
 
-            target_segment = convert(segment["tensor"], source_se, target_se, self)
-            padding = torch.nn.ZeroPad1d(
-                (0, len(segment["tensor"]) - len(target_segment))
-            )
-            initial_params = padding(target_segment) - segment["tensor"]
+            # target_segment = convert(segment["tensor"], source_se, target_se, self)
+            # padding = torch.nn.ZeroPad1d(
+            #     (0, len(segment["tensor"]) - len(target_segment))
+            # )
+            # initial_params = padding(target_segment) - segment["tensor"]
+            initial_params = torch.zeros(segment["tensor"].shape)
 
             perturbation = self.minimize(loss_f, initial_params, segment["id"])
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))

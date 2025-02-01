@@ -99,7 +99,7 @@ def generate_yourtts_loss(src, perturber):
     text_trap = io.StringIO()
     sys.stdout = text_trap
 
-    tts = TTS("tts_models/multilingual/multi-dataset/your_tts").to(perturber.DEVICE)
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(perturber.DEVICE)
 
     # restore normal stdout
     sys.stdout = sys.__stdout__
