@@ -68,7 +68,7 @@ def split_audio(audio_srs, device, sampling_rate):
         res.append(
             {
                 "start": start + ind[0],
-                "end": end - ind[1],
+                "end": start + ind[1],
                 "tensor": seg_tensor,
                 "id": k + 1,
             }
