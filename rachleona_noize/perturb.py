@@ -175,7 +175,7 @@ class PerturbationGenerator:
             log_values.append("freq")
             log_values.append("p_norm")
 
-        self.loss_generators = []
+        self.loss_generators = [generate_xtts_loss]
         if avc:
             self.loss_generators.append(generate_avc_loss)
             log_values.append("avc")
@@ -322,7 +322,7 @@ class PerturbationGenerator:
             #     (0, len(segment["tensor"]) - len(target_segment))
             # )
             # initial_params = padding(target_segment) - segment["tensor"]
-            initial_params = torch.zeros(segment["tensor"].shape)
+            initial_params = torch.ones(segment['tensors']).to(self.DEVICE)
 
             perturbation = self.minimize(loss_f, initial_params, segment["id"])
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))
