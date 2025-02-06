@@ -164,7 +164,7 @@ class PerturbationGenerator:
             )
 
         # log total loss and openvoice embeddings difference by default
-        log_values = ["loss", "dist"]
+        log_values = ["loss", "dist", "xtts"]
         # modules to include in loss function
         if cdpam:
             self.quality_func_generator = generate_cdpam_quality_func
@@ -322,7 +322,7 @@ class PerturbationGenerator:
             #     (0, len(segment["tensor"]) - len(target_segment))
             # )
             # initial_params = padding(target_segment) - segment["tensor"]
-            initial_params = torch.ones(segment['tensors']).to(self.DEVICE)
+            initial_params = torch.ones(segment['tensor'].shape).to(self.DEVICE)
 
             perturbation = self.minimize(loss_f, initial_params, segment["id"])
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))
