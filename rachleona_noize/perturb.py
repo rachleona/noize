@@ -229,7 +229,7 @@ class PerturbationGenerator:
         quality_func = self.quality_func_generator(src["tensor"], self)
 
         # initialise all necessary encoders for calculating distance loss
-        loss_modules = [generate_openvoice_loss(src_se, self)]
+        loss_modules = []
 
         for f in self.loss_generators:
             loss_modules.append(f(src["tensor"], self))
