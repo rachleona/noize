@@ -47,11 +47,12 @@ class EncoderLoss:
     def loss(self, new_tensor):
         new_emb = self.emb_f(new_tensor)
         euc_dist = torch.linalg.vector_norm(self.src_emb - new_emb)
+        elu = torch.nn.ELU()
 
         if self.logger is not None:
             self.logger.log(self.log_name, euc_dist)
 
-        return -self.weight * euc_dist
+        return self.weight * elu(30 - euc_dist)
 
 
 def generate_openvoice_loss(src_se, perturber):
@@ -100,7 +101,7 @@ def generate_yourtts_loss(src, perturber):
     text_trap = io.StringIO()
     sys.stdout = text_trap
 
-    tts = TTS("tts_models/multilingual/multi-dataset/yourtts").to(perturber.DEVICE)
+    tts = TTS("tts_models/multilingual/multi-dataset/your_tts").to(perturber.DEVICE)
 
     # restore normal stdout
     sys.stdout = sys.__stdout__
