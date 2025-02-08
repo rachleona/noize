@@ -3,9 +3,9 @@ import librosa
 import os
 import torch
 
-from rachleona_noize.openvoice.utils import HParams
-from pathlib import Path
+from glob import glob
 from faster_whisper import WhisperModel
+from rachleona_noize.openvoice.utils import HParams
 
 
 def split_audio(audio_srs, device, sampling_rate):
@@ -102,29 +102,44 @@ def cdpam_prep(audio):
     audio = torch.reshape(audio, (1, shape[0]))
     return audio
 
+def get_tgt_embs(target_id, pths_location, device):
+    voices_dir = os.path.join(pths_location, "voices", target_id, "")
+    paths = glob(f"{ voices_dir }*.pth")
 
-def choose_target(src_se, voices):
-    """
-    Chooses from a list of tone colour embedding tensors the one most different from src_se
-    (Uses simple euclidean distance)
+    target = {}
+    for p in paths:
+        name = os.path.basename(p)[:-4]
+        emb = torch.load(
+                p,
+                map_location=torch.device(device),
+                weights_only=True,
+            )
+        target[name] = emb.detach()
+    
+    return target
 
-    Parameters
-    ----------
-    src_se : torch.Tensor
-        source audio tensor to compare to
-    voices : torch.Tensor
-        list of voice embeddings available stacked into one tensor
+# def choose_target(src_se, voices):
+#     """
+#     Chooses from a list of tone colour embedding tensors the one most different from src_se
+#     (Uses simple euclidean distance)
 
-    Returns
-    -------
-    torch.Tensor
-        the tensor in the voices given that is furthest away from src_se in the feature space
-        (euclidean distance)
-    """
-    diff = voices - src_se
-    s = torch.sum(diff**2, 2)
-    i = torch.argmax(s)
-    return voices[i]
+#     Parameters
+#     ----------
+#     src_se : torch.Tensor
+#         source audio tensor to compare to
+#     voices : torch.Tensor
+#         list of voice embeddings available stacked into one tensor
+
+#     Returns
+#     -------
+#     torch.Tensor
+#         the tensor in the voices given that is furthest away from src_se in the feature space
+#         (euclidean distance)
+#     """
+#     diff = voices - src_se
+#     s = torch.sum(diff**2, 2)
+#     i = torch.argmax(s)
+#     return voices[i]
 
 
 def dict_has_keys(d, *args):
@@ -184,8 +199,6 @@ def get_hparams_from_file(config_path):
         a subset of configs for handling audio data e.g. sampling rate
     model_params: HParams
         a subset of configs for setting up the core OpenVoice synthesiser model
-    pths_location: str
-        the path to the directory where the OpenVoice checkpoint and target voice tensors are stored
     misc_config: HParams
         object containing all other configs not covered in the above
     avc_enc_params: dict
@@ -242,20 +255,11 @@ def get_hparams_from_file(config_path):
     avc_hp = HParams(**config["avc_hp"])
     avc_enc_params = config["avc_encoder"]
 
-    if "pths_location" in config:
-        pths_location = Path(config["pths_location"])
-    else:
-        dirname = os.path.dirname(__file__)
-        pths_location = Path(os.path.join(dirname, "misc"))
-
     rest = {
         key: val
         for key, val in config.items()
-        if key not in ["data", "model", "pths_location", "avc_encoder", "avc_hp"]
+        if key not in ["data", "model", "avc_encoder", "avc_hp"]
     }
     misc_config = HParams(**rest)
 
-    if not pths_location.exists():
-        raise ConfigError("Constant tensors directory not found")
-
-    return data_params, model_params, pths_location, misc_config, avc_enc_params, avc_hp
+    return data_params, model_params, misc_config, avc_enc_params, avc_hp
