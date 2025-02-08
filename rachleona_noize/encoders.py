@@ -37,12 +37,13 @@ class EncoderLoss:
 
     """
 
-    def __init__(self, src_emb, f, weight, log_name="", logger=None):
+    def __init__(self, src_emb, f, weight, threshold, log_name="", logger=None):
         self.src_emb = src_emb
         self.emb_f = f
         self.log_name = log_name
         self.weight = weight
         self.logger = logger
+        self.threshold = threshold
 
     def loss(self, new_tensor):
         new_emb = self.emb_f(new_tensor)
@@ -52,7 +53,7 @@ class EncoderLoss:
         if self.logger is not None:
             self.logger.log(self.log_name, euc_dist)
 
-        return self.weight * elu(30 - euc_dist)
+        return self.weight * elu(self.threshold - euc_dist)
 
 
 def generate_openvoice_loss(src_se, perturber):
@@ -75,6 +76,7 @@ def generate_openvoice_loss(src_se, perturber):
         src_se,
         lambda n: extract_se(n, perturber),
         perturber.DISTANCE_WEIGHT,
+        35,
         "dist",
         perturber.logger,
     )
@@ -112,6 +114,7 @@ def generate_yourtts_loss(src, perturber):
         src_emb,
         lambda n: ytts_emb(model, n),
         perturber.YOURTTS_WEIGHT,
+        0.75,
         "yourtts",
         perturber.logger,
     )
@@ -140,6 +143,7 @@ def generate_freevc_loss(src, perturber):
         src_emb,
         lambda n: model.embed_utterance(n, perturber.data_params.sampling_rate),
         perturber.FREEVC_WEIGHT,
+        0.71,
         "freevc",
         perturber.logger,
     )
@@ -174,7 +178,7 @@ def generate_avc_loss(src, perturber):
     )
     src_emb = get_emb(src).detach()
 
-    return EncoderLoss(src_emb, get_emb, perturber.AVC_WEIGHT, "avc", perturber.logger)
+    return EncoderLoss(src_emb, get_emb, perturber.AVC_WEIGHT, 2, "avc", perturber.logger)
 
 def generate_xtts_loss(src, perturber):
     """
@@ -212,6 +216,7 @@ def generate_xtts_loss(src, perturber):
         src_emb,
         get_emb,
         perturber.YOURTTS_WEIGHT,
+        1.2,
         "xtts",
         perturber.logger,
     )
