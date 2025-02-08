@@ -2,15 +2,15 @@ import os
 import torch
 
 from glob import glob
+from pathlib import Path
 from rachleona_noize.cli import warn
 from rachleona_noize.encoders import *
 from rachleona_noize.logging import Logger
 from rachleona_noize.quality import *
 from rachleona_noize.openvoice.models import SynthesizerTrn
-from rachleona_noize.ov_adapted import *
 from rich.progress import track
 from rachleona_noize.utils import (
-    choose_target,
+    get_tgt_embs,
     get_hparams_from_file,
     ConfigError,
 )
@@ -90,6 +90,7 @@ class PerturbationGenerator:
         avc,
         freevc,
         yourtts,
+        xtts,
         perturbation_level,
         cdpam_weight,
         distance_weight,
@@ -99,6 +100,7 @@ class PerturbationGenerator:
         avc_weight,
         freevc_weight,
         yourtts_weight,
+        xtts_weight,
         learning_rate,
         iterations,
         logs,
@@ -106,13 +108,17 @@ class PerturbationGenerator:
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        data_params, model_params, pths_location, misc, avc_enc_params, avc_hp = (
+        data_params, model_params, misc, avc_enc_params, avc_hp = (
             get_hparams_from_file(config_file)
         )
         self.data_params = data_params
         self.avc_enc_params = avc_enc_params
         self.avc_hp = avc_hp
         self.hann_window = {}
+
+        # misc folder location
+        dirname = os.path.dirname(__file__)
+        pths_location = Path(os.path.join(dirname, "misc"))
 
         # set up OpenVoice model
         self.model = SynthesizerTrn(
@@ -137,34 +143,8 @@ class PerturbationGenerator:
         self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
         self.af_points = os.path.join(pths_location, "points.csv")
 
-        # set up target voice selection if no target voice given
-        # only affects starting parameters and not the actual numerical optimisation process
-        voice_bank_dir = os.path.join(pths_location, "voices", "*.pth")
-        files = glob(voice_bank_dir)
-
-        if len(files) == 0:
-            warn(
-                "No reference voice tensors found in tensors directory given in config file"
-            )
-
-        if target is None:
-            self.voices = torch.zeros(max(1, len(files)), 1, 256, 1).to(self.DEVICE)
-            for k, v in enumerate(files):
-                se = torch.load(
-                    v, map_location=torch.device(self.DEVICE), weights_only=True
-                )
-                if not torch.is_tensor(se) or se.shape != torch.Size((1, 256, 1)):
-                    warn(f"Data loaded from {v} is not a valid voice tensor")
-                    continue
-                self.voices[k] += se
-            self.target = None
-        else:
-            self.target = torch.load(
-                target, map_location=torch.device(self.DEVICE), weights_only=True
-            )
-
         # log total loss and openvoice embeddings difference by default
-        log_values = ["loss", "dist", "xtts"]
+        log_values = ["loss", "dist"]
         # modules to include in loss function
         if cdpam:
             self.quality_func_generator = generate_cdpam_quality_func
@@ -175,7 +155,7 @@ class PerturbationGenerator:
             log_values.append("freq")
             log_values.append("p_norm")
 
-        self.loss_generators = [generate_xtts_loss]
+        self.loss_generators = [generate_openvoice_loss]
         if avc:
             self.loss_generators.append(generate_avc_loss)
             log_values.append("avc")
@@ -185,6 +165,14 @@ class PerturbationGenerator:
         if yourtts:
             self.loss_generators.append(generate_yourtts_loss)
             log_values.append("yourtts")
+        if xtts:
+            self.loss_generators.append(generate_xtts_loss)
+            log_values.append("xtts")
+
+        if target is None:
+            self.target = None
+        else:
+            self.target = get_tgt_embs(target, pths_location, self.DEVICE)
 
         # tunable weights
         self.CDPAM_WEIGHT = cdpam_weight
@@ -195,6 +183,7 @@ class PerturbationGenerator:
         self.AVC_WEIGHT = avc_weight
         self.FREEVC_WEIGHT = freevc_weight
         self.YOURTTS_WEIGHT = yourtts_weight
+        self.XTTS_WEIGHT = xtts_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level
         self.ITERATIONS = iterations
@@ -205,7 +194,7 @@ class PerturbationGenerator:
         else:
             self.logger = None
 
-    def generate_loss_function(self, src, src_se):
+    def generate_loss_function(self, src):
         """
         Returns the appropriate loss function and voice embedding needed to calculate initial parameters used in perturbation calculation
         Varies based on source audio segment given
@@ -309,19 +298,7 @@ class PerturbationGenerator:
         total_perturbation = torch.zeros(l).to(self.DEVICE)
 
         for segment in src_segments:
-            source_se = extract_se(segment["tensor"], self).detach()
-            loss_f = self.generate_loss_function(segment, source_se)
-
-            # if self.target is None:
-            #     target_se = choose_target(source_se, self.voices)
-            # else:
-            #     target_se = self.target
-
-            # target_segment = convert(segment["tensor"], source_se, target_se, self)
-            # padding = torch.nn.ZeroPad1d(
-            #     (0, len(segment["tensor"]) - len(target_segment))
-            # )
-            # initial_params = padding(target_segment) - segment["tensor"]
+            loss_f = self.generate_loss_function(segment)
             initial_params = torch.ones(segment['tensor'].shape).to(self.DEVICE)
 
             perturbation = self.minimize(loss_f, initial_params, segment["id"])

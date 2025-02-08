@@ -38,6 +38,7 @@ def main(
     avc: bool = True,
     freevc: bool = True,
     yourtts: bool = True,
+    xtts: bool = True,
     logs: bool = False,
     log_file: str = "log.csv",
     learning_rate: float = 0.02,
@@ -51,6 +52,7 @@ def main(
     avc_weight: float = 25,
     freevc_weight: float = 25,
     yourtts_weight: float = 25,
+    xtts_weight: float = 25
 ):
     """
     Uses whisper model to split audio clips into multiple segments
@@ -85,8 +87,7 @@ def main(
     log_file: str
         name for log file is log = True
     target: str
-        path to a saved tensor of a OpenVoice tone colour embedding, used for initiating optimisation
-        default None
+        id of a saved voice for target-based optimisation, default None
     """
 
     cli.check_file_exist(config_file, "config", True)
@@ -100,6 +101,7 @@ def main(
             avc,
             freevc,
             yourtts,
+            xtts,
             perturbation_level / 1000,
             cdpam_weight,
             distance_weight,
@@ -109,6 +111,7 @@ def main(
             avc_weight,
             freevc_weight,
             yourtts_weight,
+            xtts_weight,
             learning_rate,
             iterations,
             logs,
@@ -159,3 +162,7 @@ def main(
     )
 
     cli.report_perturbation_complete()
+
+#todo list target voices
+#todo play voice
+#todo add target voice instance
