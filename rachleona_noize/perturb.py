@@ -1,15 +1,14 @@
-import cdpam
 import os
 import torch
 
-from rachleona_noize.cli import warn
-from glob import glob
+from pathlib import Path
+from rachleona_noize.encoders import *
+from rachleona_noize.logging import Logger
+from rachleona_noize.quality import *
 from rachleona_noize.openvoice.models import SynthesizerTrn
-from rachleona_noize.ov_adapted import extract_se, convert
 from rich.progress import track
 from rachleona_noize.utils import (
-    cdpam_prep,
-    choose_target,
+    get_tgt_embs,
     get_hparams_from_file,
     ConfigError,
 )
@@ -23,18 +22,42 @@ class PerturbationGenerator:
 
     Attributes
     ----------
-    data_params : dict
+    data_params : HParams
         a subset of configs for handling audio data e.g. sampling rate
+    avc_enc_params: dict
+        a subset of configs for setting up avc speaker encoder
+    avc_hp: HParams
+        a subset of configs for audio preprocessing needed by avc
+    avc_ckpt: Path
+        the path to the checkpoints for the avc speaker encoder model
+    af_points: Path
+        the path to data used in antifake quality term for frequency filtering
     hann_window: dict
-        a dictionary for recording hann_window values used in spectrogram related calculations
+        a dictionary for recording hann_window values used in OpenVoice spectrogram related calculations
     model : SynthesizerTrn
         OpenVoice core voice extraction and conversion model object to be used in loss function
+    target : torch.Tensor or None
+        the OpenVoice tone colour embedding corresponding to the target voice used to initialise perturbations
     voices : torch.Tensor
         matrix containing all saved voice tensors to be used in selecting initial parameters
+    logger : Logger or None
+        logger instance for recording loss values (and its components) every iteration
     CDPAM_WEIGHT : int
         the weight for the cdpam value between original clip and perturbed clip in the loss function
     DISTANCE_WEIGHT : int
-        the weight for the distance between voice embeddings in the loss function
+        the weight for the distance between OpenVoice voice embeddings in the loss function
+    SNR_WEIGHT : float
+        the weight for the noise-to-ratio term in quality calculations
+    PERTURBATION_NORM_WEIGHT : float
+        the weight for the overall perturbation magnitude term in quality calculations
+    FREQUENCY_WEIGHT : float
+        the weight for the frequence filter term in quality calculations
+    AVC_WEIGHT : float
+        the weight of the distance between AVC voice embedings in the loss function
+    FREEVC_WEIGHT : float
+        the weight of the distance between freeVC voice embedings in the loss function
+    XTTS_WEIGHT : float
+        the weight of the distance between XTTS voice embedings in the loss function
     LEARNING_RATE : float
         learning rate for main loss function that optimises perturbation value
     PERTURBATION_LEVEL : float
@@ -61,20 +84,39 @@ class PerturbationGenerator:
     def __init__(
         self,
         config_file,
+        cdpam,
+        avc,
+        freevc,
+        xtts,
         perturbation_level,
         cdpam_weight,
         distance_weight,
+        snr_wieght,
+        perturbation_norm_weight,
+        frequency_weight,
+        avc_weight,
+        freevc_weight,
+        xtts_weight,
         learning_rate,
         iterations,
+        logs,
+        target,
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        data_params, model_params, pths_location, misc = get_hparams_from_file(
+        data_params, model_params, misc, avc_enc_params, avc_hp = get_hparams_from_file(
             config_file
         )
         self.data_params = data_params
+        self.avc_enc_params = avc_enc_params
+        self.avc_hp = avc_hp
         self.hann_window = {}
 
+        # misc folder location
+        dirname = os.path.dirname(__file__)
+        pths_location = Path(os.path.join(dirname, "misc"))
+
+        # set up OpenVoice model
         self.model = SynthesizerTrn(
             len(getattr(misc, "symbols", [])),
             data_params.filter_length // 2 + 1,
@@ -91,32 +133,58 @@ class PerturbationGenerator:
             raise ConfigError(
                 "Cannot find checkpoint tensor in directory given in config file"
             )
-
         self.model.load_state_dict(checkpoint_dict["model"], strict=False)
 
-        voice_bank_dir = os.path.join(pths_location, "voices", "*.pth")
-        files = glob(voice_bank_dir)
+        # set up paths for weights and info needed for other models
+        self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
+        self.af_points = os.path.join(pths_location, "points.csv")
 
-        if len(files) == 0:
-            warn(
-                "No reference voice tensors found in tensors directory given in config file"
-            )
+        # log total loss and openvoice embeddings difference by default
+        log_values = ["loss", "dist"]
+        # modules to include in loss function
+        if cdpam:
+            self.quality_func_generator = generate_cdpam_quality_func
+            log_values.append("cdpam")
+        else:
+            self.quality_func_generator = generate_antifake_quality_func
+            log_values.append("snr")
+            log_values.append("freq")
+            log_values.append("p_norm")
 
-        self.voices = torch.zeros(max(1, len(files)), 1, 256, 1).to(self.DEVICE)
-        for k, v in enumerate(files):
-            se = torch.load(
-                v, map_location=torch.device(self.DEVICE), weights_only=True
-            )
-            if not torch.is_tensor(se) or se.shape != torch.Size((1, 256, 1)):
-                warn(f"Data loaded from {v} is not a valid voice tensor")
-                continue
-            self.voices[k] += se
+        self.loss_generators = [generate_openvoice_loss]
+        if avc:
+            self.loss_generators.append(generate_avc_loss)
+            log_values.append("avc")
+        if freevc:
+            self.loss_generators.append(generate_freevc_loss)
+            log_values.append("freevc")
+        if xtts:
+            self.loss_generators.append(generate_xtts_loss)
+            log_values.append("xtts")
 
+        if target is None:
+            self.target = None
+        else:
+            self.target = get_tgt_embs(target, pths_location, self.DEVICE)
+
+        # tunable weights
         self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
+        self.SNR_WEIGHT = snr_wieght
+        self.PERTURBATION_NORM_WEIGHT = perturbation_norm_weight
+        self.FREQUENCY_WEIGHT = frequency_weight
+        self.AVC_WEIGHT = avc_weight
+        self.FREEVC_WEIGHT = freevc_weight
+        self.XTTS_WEIGHT = xtts_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level
         self.ITERATIONS = iterations
+
+        # set up logging if asked for
+        if logs:
+            self.logger = Logger(*log_values)
+        else:
+            self.logger = None
 
     def generate_loss_function(self, src):
         """
@@ -138,21 +206,33 @@ class PerturbationGenerator:
             Will be used in calculating starting parameter for loss minimisation
         """
 
-        cdpam_loss = cdpam.CDPAM(dev=self.DEVICE)
-        source_se = extract_se(src["tensor"], self).detach()
-        source_cdpam = cdpam_prep(source_se)
+        # choose a method of calculating quality term
+        quality_func = self.quality_func_generator(src["tensor"], self)
 
+        # initialise all necessary encoders for calculating distance loss
+        loss_modules = []
+
+        for f in self.loss_generators:
+            loss_modules.append(f(src["tensor"], self))
+
+        # combine all to create loss function to be used for this segment
         def loss(perturbation):
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
-            new_se = extract_se(new_srs_tensor, self)
-            new_cdpam = cdpam_prep(new_srs_tensor)
-            euc_dist = torch.sum((source_se - new_se) ** 2)
-            cdpam_val = cdpam_loss.forward(source_cdpam, new_cdpam)
 
-            return -self.DISTANCE_WEIGHT * euc_dist + self.CDPAM_WEIGHT * cdpam_val
+            quality_term = quality_func(new_srs_tensor, scaled)
+            dist_term = 0
+            for m in loss_modules:
+                dist_term += m.loss(new_srs_tensor)
 
-        return loss, source_se
+            loss = dist_term + quality_term
+
+            if self.logger is not None:
+                self.logger.log("loss", loss)
+
+            return loss
+
+        return loss
 
     def minimize(self, function, initial_parameters, segment_id):
         """
@@ -210,13 +290,8 @@ class PerturbationGenerator:
         total_perturbation = torch.zeros(l).to(self.DEVICE)
 
         for segment in src_segments:
-            loss_f, source_se = self.generate_loss_function(segment)
-            target_se = choose_target(source_se, self.voices)
-            target_segment = convert(segment["tensor"], source_se, target_se, self)
-            padding = torch.nn.ZeroPad1d(
-                (0, len(segment["tensor"]) - len(target_segment))
-            )
-            initial_params = padding(target_segment) - segment["tensor"]
+            loss_f = self.generate_loss_function(segment)
+            initial_params = torch.ones(segment["tensor"].shape).to(self.DEVICE)
 
             perturbation = self.minimize(loss_f, initial_params, segment["id"])
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))

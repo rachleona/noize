@@ -1,10 +1,11 @@
 import json
+import librosa
 import os
 import torch
 
-from rachleona_noize.openvoice.utils import HParams
-from pathlib import Path
+from glob import glob
 from faster_whisper import WhisperModel
+from rachleona_noize.openvoice.utils import HParams
 
 
 def split_audio(audio_srs, device, sampling_rate):
@@ -56,6 +57,7 @@ def split_audio(audio_srs, device, sampling_rate):
 
         # left 0.08s for each audios
         audio_seg = audio_srs[start:end]
+        audio_seg, ind = librosa.effects.trim(audio_seg)
 
         if len(audio_seg) == 0:
             continue
@@ -63,7 +65,14 @@ def split_audio(audio_srs, device, sampling_rate):
         seg_tensor = torch.FloatTensor(audio_seg).to(device)
 
         sr_constant = sampling_rate / 1000
-        res.append({"start": start, "end": end, "tensor": seg_tensor, "id": k + 1})
+        res.append(
+            {
+                "start": start + ind[0],
+                "end": start + ind[1],
+                "tensor": seg_tensor,
+                "id": k + 1,
+            }
+        )
 
         if k < len(segments) - 1:
             start = int(max(0, segments[k + 1].start * 1000 - 80) * sr_constant)
@@ -94,27 +103,38 @@ def cdpam_prep(audio):
     return audio
 
 
-def choose_target(src_se, voices):
+def get_tgt_embs(target_id, pths_location, device):
     """
-    Chooses from a list of tone colour embedding tensors the one most different from src_se
-    (Uses simple euclidean distance)
+    Loads saved target voice embeddings
 
     Parameters
     ----------
-    src_se : torch.Tensor
-        source audio tensor to compare to
-    voices : torch.Tensor
-        list of voice embeddings available stacked into one tensor
+    target_id : str
+        id of the target voice to load, this will be the name of the directory containing all the saved tensors
+    pths_location : Path
+        path to the misc directory containing saved voices
+    device : str
+        device to load the tensors to
 
     Returns
     -------
-    torch.Tensor
-        the tensor in the voices given that is furthest away from src_se in the feature space
+    bool
+        True only if d has all of *args as keys and False otherwise
     """
-    diff = voices - src_se
-    s = torch.sum(diff**2, 2)
-    i = torch.argmax(s)
-    return voices[i]
+    voices_dir = os.path.join(pths_location, "voices", target_id, "")
+    paths = glob(f"{ voices_dir }*.pth")
+
+    target = {}
+    for p in paths:
+        name = os.path.basename(p)[:-4]
+        emb = torch.load(
+            p,
+            map_location=torch.device(device),
+            weights_only=True,
+        )
+        target[name] = emb.detach()
+
+    return target
 
 
 def dict_has_keys(d, *args):
@@ -174,10 +194,12 @@ def get_hparams_from_file(config_path):
         a subset of configs for handling audio data e.g. sampling rate
     model_params: HParams
         a subset of configs for setting up the core OpenVoice synthesiser model
-    pths_location: str
-        the path to the directory where the OpenVoice checkpoint and target voice tensors are stored
     misc_config: HParams
         object containing all other configs not covered in the above
+    avc_enc_params: dict
+        encoder parameters needed for initialising avc speaker encoder
+    avc_hp: HParams
+        configs used for preprocessing audio data for avc speaker encoder
 
     Raises
     ------
@@ -189,12 +211,12 @@ def get_hparams_from_file(config_path):
         data = f.read()
     config = json.loads(data)
 
-    if not dict_has_keys(config, "data", "model"):
+    if not dict_has_keys(config, "ov_data", "ov_model", "avc_encoder", "avc_hp"):
         # error
         raise ConfigError("Config file does not contain key sections")
 
     if not dict_has_keys(
-        config["data"],
+        config["ov_data"],
         "sampling_rate",
         "filter_length",
         "hop_length",
@@ -204,7 +226,7 @@ def get_hparams_from_file(config_path):
         raise ConfigError("Data config is missing key entries")
 
     if not dict_has_keys(
-        config["model"],
+        config["ov_model"],
         "zero_g",
         "inter_channels",
         "hidden_channels",
@@ -223,23 +245,16 @@ def get_hparams_from_file(config_path):
     ):
         raise ConfigError("Model config is missing key entries")
 
-    data_params = HParams(**config["data"])
-    model_params = HParams(**config["model"])
-
-    if "pths_location" in config:
-        pths_location = Path(config["pths_location"])
-    else:
-        dirname = os.path.dirname(__file__)
-        pths_location = Path(os.path.join(dirname, "..", "misc"))
+    data_params = HParams(**config["ov_data"])
+    model_params = HParams(**config["ov_model"])
+    avc_hp = HParams(**config["avc_hp"])
+    avc_enc_params = config["avc_encoder"]
 
     rest = {
         key: val
         for key, val in config.items()
-        if key != "data" and key != "model" and key != "pths_location"
+        if key not in ["data", "model", "avc_encoder", "avc_hp"]
     }
     misc_config = HParams(**rest)
 
-    if not pths_location.exists():
-        raise ConfigError("Constant tensors directory not found")
-
-    return data_params, model_params, pths_location, misc_config
+    return data_params, model_params, misc_config, avc_enc_params, avc_hp
