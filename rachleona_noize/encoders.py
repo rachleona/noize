@@ -1,12 +1,9 @@
-import io
-import sys
 import torch
 import torchaudio
 
 from rachleona_noize.openvoice.mel_processing import spectrogram_torch
 from rachleona_noize.adaptive_voice_conversion.model import SpeakerEncoder as AvcEncoder
 from rachleona_noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
-from rachleona_noize.yourtts.compute_embeddings import compute_embeddings as ytts_emb
 from TTS.api import TTS
 
 
@@ -20,10 +17,14 @@ class EncoderLoss:
     ----------
     src_emb : torch.Tensor
         voice embedding from the source audio to be used in calculating embedding distance
+    tgt_emb : torch.Tensor
+        voice embedding of target audio to deviate towards
     emb_f: function (torch.Tensor) -> torch.Tensor
         function for extracting the embedding of a given audio time series tensor
     weight: float
         the weight to multiply the calculated embedding distance with
+    threshold: float
+        the threshold norm to maximise toward, used in ELU function
     logger: Logger or None, default None
         logger for logging distance values
     log_name: str, default ""
@@ -50,7 +51,11 @@ class EncoderLoss:
 
     def loss(self, new_tensor):
         new_emb = self.emb_f(new_tensor)
+        
+        # maximise distance from original embedding
         euc_dist = torch.linalg.vector_norm(self.src_emb - new_emb)
+
+        # minimise distance to target embedding
         tgt_dist = (
             0
             if self.tgt_emb is None
@@ -100,48 +105,6 @@ def generate_openvoice_loss(src, perturber):
         perturber.DISTANCE_WEIGHT,
         35,
         "dist",
-        perturber.logger,
-    )
-
-
-def generate_yourtts_loss(src, perturber):
-    """
-    Generates EncoderLoss instance based on current source clip and perturber config
-    Uses coqui ViTS speaker encoder
-    (H/ASP speaker recognition model based on ResNet architecture)
-
-    Parameters
-    ----------
-    src : torch.Tensor
-        source audio time series
-    perturber : PerturbationGenerator
-        perturbation generator instance that is going to use the loss function
-
-    Returns
-    -------
-    EncoderLoss
-    """
-    # suppress verbose output from model initialisation
-    text_trap = io.StringIO()
-    sys.stdout = text_trap
-
-    tts = TTS(
-        "tts_models/multilingual/multi-dataset/your_tts", gpu=perturber.DEVICE != "cpu"
-    )
-
-    # restore normal stdout
-    sys.stdout = sys.__stdout__
-    model = tts.synthesizer.tts_model.speaker_manager.encoder
-
-    src_emb = ytts_emb(model, src).detach()
-    tgt_emb = None if perturber.target is None else perturber.target["ytts_embed"]
-    return EncoderLoss(
-        src_emb,
-        tgt_emb,
-        lambda n: ytts_emb(model, n),
-        perturber.YOURTTS_WEIGHT,
-        0.75,
-        "yourtts",
         perturber.logger,
     )
 
@@ -257,10 +220,17 @@ def ov_extract_se(
 
     Parameters
     ----------
+    model : SynthesizerTrn
+        OpenVoice model instance
     audio_ref_tensor : torch.Tensor
         the audio waveform data in tensor form
-    perturber : PerturbationGenerator
-        PerturbationGenerator object containing the model and config needed for the extraction
+    filter_length : float
+    hop_length : float
+    win_length : float
+    hann_window : dict
+        parameters for spectrogram calculation
+    device : str
+        device to do tensor calculations on
 
     Returns
     -------
@@ -283,6 +253,25 @@ def ov_extract_se(
 
 
 def xtts_get_emb(model, audio, sr):
+    """
+    Extracts XTTS Speaker Embeddings from a given audio tensor
+    Adapted from original XTTS code 
+
+    Parameters
+    ----------
+    model 
+        XTTS model instance
+    audio : torch.Tensor
+        the audio waveform data in tensor form
+    sr : int
+        sampling rate of audio
+        
+    Returns
+    -------
+    np.ndarray
+        perturbation to be added to the original audio time series to protect against voice cloning
+    """
+
     audio = torch.unsqueeze(audio, 0)
     audio = audio[:, : sr * 30].to(model.device)
 
