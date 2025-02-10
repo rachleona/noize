@@ -37,7 +37,6 @@ def main(
     cdpam: bool = True,
     avc: bool = True,
     freevc: bool = True,
-    yourtts: bool = True,
     xtts: bool = True,
     logs: bool = False,
     log_file: str = "log.csv",
@@ -51,7 +50,6 @@ def main(
     frequency_weight: float = 0.3,
     avc_weight: float = 25,
     freevc_weight: float = 25,
-    yourtts_weight: float = 25,
     xtts_weight: float = 25,
 ):
     """
@@ -74,8 +72,8 @@ def main(
         whether to use adaIN encoder in perturbation calculation, default True
     freevc: bool
         whether to use freeVC encoder in perturbation calculation, default True
-    yourtts: bool
-        whether to use YourTTS encoder in perturbation calculation, default True
+    xtts: bool
+        whether to use XTTS encoder in perturbation calculation, default True
     perturbation_level: int = 3
         perturbation level between 1-5, controls how strong the noise applied is
     learning_rate: float
@@ -100,7 +98,6 @@ def main(
             cdpam,
             avc,
             freevc,
-            yourtts,
             xtts,
             perturbation_level / 1000,
             cdpam_weight,
@@ -110,7 +107,6 @@ def main(
             frequency_weight,
             avc_weight,
             freevc_weight,
-            yourtts_weight,
             xtts_weight,
             learning_rate,
             iterations,

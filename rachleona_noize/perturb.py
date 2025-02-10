@@ -1,9 +1,7 @@
 import os
 import torch
 
-from glob import glob
 from pathlib import Path
-from rachleona_noize.cli import warn
 from rachleona_noize.encoders import *
 from rachleona_noize.logging import Logger
 from rachleona_noize.quality import *
@@ -58,8 +56,8 @@ class PerturbationGenerator:
         the weight of the distance between AVC voice embedings in the loss function
     FREEVC_WEIGHT : float
         the weight of the distance between freeVC voice embedings in the loss function
-    YOURTTS_WEIGHT : float
-        the weight of the distance between YourTTS voice embedings in the loss function
+    XTTS_WEIGHT : float
+        the weight of the distance between XTTS voice embedings in the loss function
     LEARNING_RATE : float
         learning rate for main loss function that optimises perturbation value
     PERTURBATION_LEVEL : float
@@ -89,7 +87,6 @@ class PerturbationGenerator:
         cdpam,
         avc,
         freevc,
-        yourtts,
         xtts,
         perturbation_level,
         cdpam_weight,
@@ -99,7 +96,6 @@ class PerturbationGenerator:
         frequency_weight,
         avc_weight,
         freevc_weight,
-        yourtts_weight,
         xtts_weight,
         learning_rate,
         iterations,
@@ -162,9 +158,6 @@ class PerturbationGenerator:
         if freevc:
             self.loss_generators.append(generate_freevc_loss)
             log_values.append("freevc")
-        if yourtts:
-            self.loss_generators.append(generate_yourtts_loss)
-            log_values.append("yourtts")
         if xtts:
             self.loss_generators.append(generate_xtts_loss)
             log_values.append("xtts")
@@ -182,7 +175,6 @@ class PerturbationGenerator:
         self.FREQUENCY_WEIGHT = frequency_weight
         self.AVC_WEIGHT = avc_weight
         self.FREEVC_WEIGHT = freevc_weight
-        self.YOURTTS_WEIGHT = yourtts_weight
         self.XTTS_WEIGHT = xtts_weight
         self.LEARNING_RATE = learning_rate
         self.PERTURBATION_LEVEL = perturbation_level

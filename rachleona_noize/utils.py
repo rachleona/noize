@@ -104,6 +104,23 @@ def cdpam_prep(audio):
 
 
 def get_tgt_embs(target_id, pths_location, device):
+    """
+    Loads saved target voice embeddings
+
+    Parameters
+    ----------
+    target_id : str
+        id of the target voice to load, this will be the name of the directory containing all the saved tensors
+    pths_location : Path
+        path to the misc directory containing saved voices
+    device : str
+        device to load the tensors to
+
+    Returns
+    -------
+    bool
+        True only if d has all of *args as keys and False otherwise
+    """
     voices_dir = os.path.join(pths_location, "voices", target_id, "")
     paths = glob(f"{ voices_dir }*.pth")
 
@@ -118,30 +135,6 @@ def get_tgt_embs(target_id, pths_location, device):
         target[name] = emb.detach()
 
     return target
-
-
-# def choose_target(src_se, voices):
-#     """
-#     Chooses from a list of tone colour embedding tensors the one most different from src_se
-#     (Uses simple euclidean distance)
-
-#     Parameters
-#     ----------
-#     src_se : torch.Tensor
-#         source audio tensor to compare to
-#     voices : torch.Tensor
-#         list of voice embeddings available stacked into one tensor
-
-#     Returns
-#     -------
-#     torch.Tensor
-#         the tensor in the voices given that is furthest away from src_se in the feature space
-#         (euclidean distance)
-#     """
-#     diff = voices - src_se
-#     s = torch.sum(diff**2, 2)
-#     i = torch.argmax(s)
-#     return voices[i]
 
 
 def dict_has_keys(d, *args):
