@@ -108,8 +108,8 @@ class PerturbationGenerator:
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        data_params, model_params, misc, avc_enc_params, avc_hp = (
-            get_hparams_from_file(config_file)
+        data_params, model_params, misc, avc_enc_params, avc_hp = get_hparams_from_file(
+            config_file
         )
         self.data_params = data_params
         self.avc_enc_params = avc_enc_params
@@ -299,7 +299,7 @@ class PerturbationGenerator:
 
         for segment in src_segments:
             loss_f = self.generate_loss_function(segment)
-            initial_params = torch.ones(segment['tensor'].shape).to(self.DEVICE)
+            initial_params = torch.ones(segment["tensor"].shape).to(self.DEVICE)
 
             perturbation = self.minimize(loss_f, initial_params, segment["id"])
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))

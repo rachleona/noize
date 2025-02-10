@@ -52,7 +52,7 @@ def main(
     avc_weight: float = 25,
     freevc_weight: float = 25,
     yourtts_weight: float = 25,
-    xtts_weight: float = 25
+    xtts_weight: float = 25,
 ):
     """
     Uses whisper model to split audio clips into multiple segments
@@ -163,6 +163,7 @@ def main(
 
     cli.report_perturbation_complete()
 
-#todo list target voices
-#todo play voice
-#todo add target voice instance
+
+# todo list target voices
+# todo play voice
+# todo add target voice instance

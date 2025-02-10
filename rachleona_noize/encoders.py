@@ -37,7 +37,9 @@ class EncoderLoss:
 
     """
 
-    def __init__(self, src_emb, tgt_emb, f, weight, threshold, log_name="", logger=None):
+    def __init__(
+        self, src_emb, tgt_emb, f, weight, threshold, log_name="", logger=None
+    ):
         self.src_emb = src_emb
         self.tgt_emb = tgt_emb
         self.emb_f = f
@@ -49,14 +51,18 @@ class EncoderLoss:
     def loss(self, new_tensor):
         new_emb = self.emb_f(new_tensor)
         euc_dist = torch.linalg.vector_norm(self.src_emb - new_emb)
-        tgt_dist = 0 if self.tgt_emb is None else torch.linalg.vector_norm(self.tgt_emb - new_emb)
+        tgt_dist = (
+            0
+            if self.tgt_emb is None
+            else torch.linalg.vector_norm(self.tgt_emb - new_emb)
+        )
         elu = torch.nn.ELU()
 
         if self.logger is not None:
             self.logger.log(self.log_name, euc_dist)
 
         return self.weight * (elu(self.threshold - euc_dist) + tgt_dist)
-    
+
 
 def generate_openvoice_loss(src, perturber):
     """
@@ -82,8 +88,9 @@ def generate_openvoice_loss(src, perturber):
         perturber.data_params.hop_length,
         perturber.data_params.win_length,
         perturber.hann_window,
-        perturber.DEVICE)
-    
+        perturber.DEVICE,
+    )
+
     src_emb = get_emb(src).detach()
     tgt_emb = None if perturber.target is None else perturber.target["ov_embed"]
     return EncoderLoss(
@@ -118,14 +125,16 @@ def generate_yourtts_loss(src, perturber):
     text_trap = io.StringIO()
     sys.stdout = text_trap
 
-    tts = TTS("tts_models/multilingual/multi-dataset/your_tts", gpu=perturber.DEVICE!="cpu")
+    tts = TTS(
+        "tts_models/multilingual/multi-dataset/your_tts", gpu=perturber.DEVICE != "cpu"
+    )
 
     # restore normal stdout
     sys.stdout = sys.__stdout__
-    model = tts.synthesizer.tts_model.speaker_manager.encoder 
-    
+    model = tts.synthesizer.tts_model.speaker_manager.encoder
+
     src_emb = ytts_emb(model, src).detach()
-    tgt_emb = None if perturber.target is None else perturber.target['ytts_embed']
+    tgt_emb = None if perturber.target is None else perturber.target["ytts_embed"]
     return EncoderLoss(
         src_emb,
         tgt_emb,
@@ -155,9 +164,9 @@ def generate_freevc_loss(src, perturber):
     """
     model = FvcEncoder(perturber.DEVICE, False)
     get_emb = lambda n: model.embed_utterance(n, perturber.data_params.sampling_rate)
-    
+
     src_emb = get_emb(src).detach()
-    tgt_emb = None if perturber.target is None else perturber.target['fvc_embed']
+    tgt_emb = None if perturber.target is None else perturber.target["fvc_embed"]
     return EncoderLoss(
         src_emb,
         tgt_emb,
@@ -196,10 +205,12 @@ def generate_avc_loss(src, perturber):
     get_emb = lambda x: model.get_speaker_embeddings(
         x, perturber.avc_hp, perturber.data_params.sampling_rate, perturber.DEVICE
     )
-    
+
     src_emb = get_emb(src).detach()
-    tgt_emb = None if perturber.target is None else perturber.target['avc_embed']
-    return EncoderLoss(src_emb, tgt_emb, get_emb, perturber.AVC_WEIGHT, 2, "avc", perturber.logger)
+    tgt_emb = None if perturber.target is None else perturber.target["avc_embed"]
+    return EncoderLoss(
+        src_emb, tgt_emb, get_emb, perturber.AVC_WEIGHT, 2, "avc", perturber.logger
+    )
 
 
 def generate_xtts_loss(src, perturber):
@@ -223,9 +234,9 @@ def generate_xtts_loss(src, perturber):
 
     model = tts.synthesizer.tts_model
     get_emb = lambda n: xtts_get_emb(model, n, perturber.data_params.sampling_rate)
-    
+
     src_emb = get_emb(src).detach()
-    tgt_emb = None if perturber.target is None else perturber.target['xtts_embed']
+    tgt_emb = None if perturber.target is None else perturber.target["xtts_embed"]
     return EncoderLoss(
         src_emb,
         tgt_emb,
@@ -236,7 +247,10 @@ def generate_xtts_loss(src, perturber):
         perturber.logger,
     )
 
-def ov_extract_se(model, audio_ref_tensor, filter_length, hop_length, win_length, hann_window, device):
+
+def ov_extract_se(
+    model, audio_ref_tensor, filter_length, hop_length, win_length, hann_window, device
+):
     """
     Extracts OpenVoice Tone Colour Embeddings from a given audio tensor
     Adapted from original OpenVoice code to process audio waveform data directly instead of from a file
@@ -267,13 +281,16 @@ def ov_extract_se(model, audio_ref_tensor, filter_length, hop_length, win_length
 
     return g
 
+
 def xtts_get_emb(model, audio, sr):
     audio = torch.unsqueeze(audio, 0)
     audio = audio[:, : sr * 30].to(model.device)
-    
+
     audio_16k = torchaudio.functional.resample(audio, sr, 16000)
     return (
-        model.hifigan_decoder.speaker_encoder.forward(audio_16k.to(model.device), l2_norm=True)
+        model.hifigan_decoder.speaker_encoder.forward(
+            audio_16k.to(model.device), l2_norm=True
+        )
         .unsqueeze(-1)
         .to(model.device)
     )
