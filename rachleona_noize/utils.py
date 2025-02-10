@@ -102,6 +102,7 @@ def cdpam_prep(audio):
     audio = torch.reshape(audio, (1, shape[0]))
     return audio
 
+
 def get_tgt_embs(target_id, pths_location, device):
     voices_dir = os.path.join(pths_location, "voices", target_id, "")
     paths = glob(f"{ voices_dir }*.pth")
@@ -110,13 +111,14 @@ def get_tgt_embs(target_id, pths_location, device):
     for p in paths:
         name = os.path.basename(p)[:-4]
         emb = torch.load(
-                p,
-                map_location=torch.device(device),
-                weights_only=True,
-            )
+            p,
+            map_location=torch.device(device),
+            weights_only=True,
+        )
         target[name] = emb.detach()
-    
+
     return target
+
 
 # def choose_target(src_se, voices):
 #     """
