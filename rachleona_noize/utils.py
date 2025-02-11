@@ -79,30 +79,6 @@ def split_audio(audio_srs, device, sampling_rate):
 
     return res
 
-
-def cdpam_prep(audio):
-    """
-    Transform audio time series tensors into shape expected by CDPAM
-    Adapted from CDPAM code to process audio wave data directly instead of through files
-
-    Parameters
-    ----------
-    audio : torch.Tensor
-        The audio tensor to be transformed
-
-    Returns
-    -------
-    torch.Tensor
-        The transformed tensor to be used in CDPAM value calculation
-    """
-
-    audio = audio.to(torch.float64) * 32768
-    audio = torch.reshape(audio, (-1, 1))
-    shape = audio.shape
-    audio = torch.reshape(audio, (1, shape[0]))
-    return audio
-
-
 def get_tgt_embs(target_id, pths_location, device):
     """
     Loads saved target voice embeddings

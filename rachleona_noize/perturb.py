@@ -4,13 +4,12 @@ import torch
 from pathlib import Path
 from rachleona_noize.encoders import *
 from rachleona_noize.logging import Logger
-from rachleona_noize.quality import *
-from rachleona_noize.openvoice.models import SynthesizerTrn
+from rachleona_noize.quality import generate_antifake_quality_func
 from rich.progress import track
 from rachleona_noize.utils import (
     get_tgt_embs,
     get_hparams_from_file,
-    ConfigError,
+
 )
 
 
@@ -42,8 +41,6 @@ class PerturbationGenerator:
         matrix containing all saved voice tensors to be used in selecting initial parameters
     logger : Logger or None
         logger instance for recording loss values (and its components) every iteration
-    CDPAM_WEIGHT : int
-        the weight for the cdpam value between original clip and perturbed clip in the loss function
     DISTANCE_WEIGHT : int
         the weight for the distance between OpenVoice voice embeddings in the loss function
     SNR_WEIGHT : float
@@ -84,14 +81,12 @@ class PerturbationGenerator:
     def __init__(
         self,
         config_file,
-        cdpam,
         avc,
         freevc,
         xtts,
         perturbation_level,
-        cdpam_weight,
         distance_weight,
-        snr_wieght,
+        snr_weight,
         perturbation_norm_weight,
         frequency_weight,
         avc_weight,
@@ -117,39 +112,16 @@ class PerturbationGenerator:
         pths_location = Path(os.path.join(dirname, "misc"))
 
         # set up OpenVoice model
-        self.model = SynthesizerTrn(
-            len(getattr(misc, "symbols", [])),
-            data_params.filter_length // 2 + 1,
-            n_speakers=data_params.n_speakers,
-            **model_params,
-        ).to(self.DEVICE)
-        try:
-            checkpoint_dict = torch.load(
-                os.path.join(pths_location, "checkpoint.pth"),
-                map_location=torch.device(self.DEVICE),
-                weights_only=True,
-            )
-        except FileNotFoundError:
-            raise ConfigError(
-                "Cannot find checkpoint tensor in directory given in config file"
-            )
-        self.model.load_state_dict(checkpoint_dict["model"], strict=False)
+        self.model = init_ov(misc, data_params, model_params, self.DEVICE, os.path.join(pths_location, "checkpoint.pth"))
 
         # set up paths for weights and info needed for other models
         self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
-        self.af_points = os.path.join(pths_location, "points.csv")
 
         # log total loss and openvoice embeddings difference by default
         log_values = ["loss", "dist"]
-        # modules to include in loss function
-        if cdpam:
-            self.quality_func_generator = generate_cdpam_quality_func
-            log_values.append("cdpam")
-        else:
-            self.quality_func_generator = generate_antifake_quality_func
-            log_values.append("snr")
-            log_values.append("freq")
-            log_values.append("p_norm")
+        log_values.append("snr")
+        log_values.append("freq")
+        log_values.append("p_norm")
 
         self.loss_generators = [generate_openvoice_loss]
         if avc:
@@ -168,9 +140,8 @@ class PerturbationGenerator:
             self.target = get_tgt_embs(target, pths_location, self.DEVICE)
 
         # tunable weights
-        self.CDPAM_WEIGHT = cdpam_weight
         self.DISTANCE_WEIGHT = distance_weight
-        self.SNR_WEIGHT = snr_wieght
+        self.SNR_WEIGHT = snr_weight
         self.PERTURBATION_NORM_WEIGHT = perturbation_norm_weight
         self.FREQUENCY_WEIGHT = frequency_weight
         self.AVC_WEIGHT = avc_weight
@@ -185,6 +156,8 @@ class PerturbationGenerator:
             self.logger = Logger(*log_values)
         else:
             self.logger = None
+
+        self.quality_func = generate_antifake_quality_func(os.path.join(pths_location, "points.csv"), data_params.sampling_rate, self.SNR_WEIGHT, self.PERTURBATION_NORM_WEIGHT, self.FREQUENCY_WEIGHT, self.logger)
 
     def generate_loss_function(self, src):
         """
@@ -206,9 +179,6 @@ class PerturbationGenerator:
             Will be used in calculating starting parameter for loss minimisation
         """
 
-        # choose a method of calculating quality term
-        quality_func = self.quality_func_generator(src["tensor"], self)
-
         # initialise all necessary encoders for calculating distance loss
         loss_modules = []
 
@@ -220,7 +190,7 @@ class PerturbationGenerator:
             scaled = perturbation / torch.max(perturbation) * self.PERTURBATION_LEVEL
             new_srs_tensor = src["tensor"] + scaled
 
-            quality_term = quality_func(new_srs_tensor, scaled)
+            quality_term = self.quality_func(new_srs_tensor, scaled)
             dist_term = 0
             for m in loss_modules:
                 dist_term += m.loss(new_srs_tensor)
@@ -298,4 +268,4 @@ class PerturbationGenerator:
             padded = padding(perturbation.detach())
             total_perturbation += padded[:l]
 
-        return total_perturbation.cpu().detach().numpy()
+        return total_perturbation.cpu().detach()

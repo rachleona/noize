@@ -1,9 +1,12 @@
 import torch
 import torchaudio
 
-from rachleona_noize.openvoice.mel_processing import spectrogram_torch
 from rachleona_noize.adaptive_voice_conversion.model import SpeakerEncoder as AvcEncoder
 from rachleona_noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
+from rachleona_noize.openvoice.mel_processing import spectrogram_torch
+from rachleona_noize.openvoice.models import SynthesizerTrn
+from rachleona_noize.utils import ConfigError
+
 from TTS.api import TTS
 
 
@@ -283,3 +286,24 @@ def xtts_get_emb(model, audio, sr):
         .unsqueeze(-1)
         .to(model.device)
     )
+
+def init_ov(misc, data_params, model_params, device, ckpt_path):
+    model = SynthesizerTrn(
+        len(getattr(misc, "symbols", [])),
+        data_params.filter_length // 2 + 1,
+        n_speakers=data_params.n_speakers,
+        **model_params,
+    ).to(device)
+    try:
+        checkpoint_dict = torch.load(
+            ckpt_path,
+            map_location=torch.device(device),
+            weights_only=True,
+        )
+        model.load_state_dict(checkpoint_dict["model"], strict=False)
+    except FileNotFoundError:
+        raise ConfigError(
+            "Cannot find checkpoint for openvoice"
+        )
+    
+    return model

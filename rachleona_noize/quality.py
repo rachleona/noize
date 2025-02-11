@@ -1,44 +1,9 @@
-import cdpam
 import csv
 import torch
 import torchaudio
 
-from rachleona_noize.utils import cdpam_prep
 
-
-def generate_cdpam_quality_func(src, perturber):
-    """
-    generates function to calculate the quality term in perturbation generation loss
-    uses cdpam to estimate quality difference from original
-
-    Parameters
-    ----------
-    src : torch.Tensor
-        source audio tensor to compare to
-    perturber : PerturbationGenerator
-        perturber to be used with the generated quality function
-
-    Returns
-    -------
-    function (new_tensor: torch.Tensor, perturbation: torch.Tensor) -> torch.Tensor
-        returns cdpam calculated quality difference between src and new_tensor
-        (given new_tensor = src + perturbation)
-    """
-    cdpam_loss = cdpam.CDPAM(dev=perturber.DEVICE)
-    source_cdpam = cdpam_prep(src)
-
-    def f(new_tensor, perturbation):
-        cdpam_val = cdpam_loss.forward(source_cdpam, cdpam_prep(new_tensor))
-
-        if perturber.logger is not None:
-            perturber.logger.log("cdpam", cdpam_val)
-
-        return perturber.CDPAM_WEIGHT * cdpam_val
-
-    return f
-
-
-def generate_antifake_quality_func(src, perturber):
+def generate_antifake_quality_func(points_file, sr, snr_weight, perturbation_norm_weight, frequency_weight, logger):
     """
     generates function to calculate the quality term in perturbation generation loss
     combines magnitude of perturbation, signal-to-noise ratio and frequency filtering
@@ -59,7 +24,7 @@ def generate_antifake_quality_func(src, perturber):
     """
     xs = []
     ys = []
-    with open(perturber.af_points) as file:
+    with open(points_file) as file:
         reader = csv.reader(file)
         header = next(reader)
         for row in reader:
@@ -86,7 +51,7 @@ def generate_antifake_quality_func(src, perturber):
         # for each 201 windows, 201 bc fft window is defaulted to 400
         for i in range(0, diff_spec.shape[0]):
             # by the nyquist theorem, signal processing can only reach half of the sampling rate
-            bin_freq = perturber.data_params.sampling_rate / 2 / 200
+            bin_freq = sr / 2 / 200
 
             # middle point at each bin
             probe_freq = (i + 0.5) * bin_freq
@@ -103,16 +68,16 @@ def generate_antifake_quality_func(src, perturber):
         # sum up the loss, divide by the length
         quality_frequency = torch.sum(diff_spec) / len(diff_spec)
 
-        if perturber.logger is not None:
-            perturber.logger.log("snr", quality_snr)
-            perturber.logger.log("p_norm", quality_l2_norm)
-            perturber.logger.log("freq", quality_frequency)
+        if logger is not None:
+            logger.log("snr", quality_snr)
+            logger.log("p_norm", quality_l2_norm)
+            logger.log("freq", quality_frequency)
 
         # aggregate loss
         return (
-            perturber.SNR_WEIGHT * quality_snr
-            - perturber.PERTURBATION_NORM_WEIGHT * quality_l2_norm
-            - perturber.FREQUENCY_WEIGHT * quality_frequency
+            snr_weight * quality_snr
+            - perturbation_norm_weight * quality_l2_norm
+            - frequency_weight * quality_frequency
         )
 
     return f

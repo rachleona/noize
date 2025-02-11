@@ -1,7 +1,7 @@
 import rachleona_noize.cli as cli
 import os
 import re
-import soundfile as sf
+import torchaudio
 import typer
 import warnings
 
@@ -10,6 +10,7 @@ from rachleona_noize.perturb import PerturbationGenerator
 from typing import Optional
 from typing_extensions import Annotated
 from rachleona_noize.utils import split_audio, ConfigError
+import rachleona_noize.voices as voices
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
@@ -28,33 +29,30 @@ default_config_path = os.path.join(dirpath, "config.json")
 
 
 @app.command()
-def main(
+def protect(
     filepath: Annotated[Path, typer.Argument()] = None,
     output_dir: Annotated[str, typer.Argument()] = None,
-    perturbation_level: int = 3,
+    perturbation_level: int = 5,
+    target: str = None,
     config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
     output_filename: str = None,
-    cdpam: bool = True,
     avc: bool = True,
     freevc: bool = True,
     xtts: bool = True,
     logs: bool = False,
     log_file: str = "log.csv",
     learning_rate: float = 0.02,
-    iterations: int = 300,
-    target: str = None,
-    cdpam_weight: int = 50,
+    iterations: int = 500,
     distance_weight: int = 2,
-    snr_weight: float = 0.005,
-    perturbation_norm_weight: float = 0.05,
-    frequency_weight: float = 0.3,
+    snr_weight: float = 0.025,
+    perturbation_norm_weight: float = 0.25,
+    frequency_weight: float = 1.5,
     avc_weight: float = 25,
     freevc_weight: float = 25,
     xtts_weight: float = 25,
 ):
     """
-    Uses whisper model to split audio clips into multiple segments
-    Adapted from OpenVoice code to process audio data directly instead of from files
+    Apply adversarial perturbation to produced protected audio file
 
     Parameters
     ----------
@@ -62,6 +60,10 @@ def main(
         path to the audio file to apply protection to
     output_dir: str
         name of output directory, will be created if no already exists
+    perturbation_level: int = 3
+        perturbation level between 1-5, controls how strong the noise applied is
+    target: str
+        id of a saved voice for target-based optimisation, default None
     config_file: Path, optional
         path to the config file, use official repo one by default
     output_filename: str, optional
@@ -74,18 +76,14 @@ def main(
         whether to use freeVC encoder in perturbation calculation, default True
     xtts: bool
         whether to use XTTS encoder in perturbation calculation, default True
-    perturbation_level: int = 3
-        perturbation level between 1-5, controls how strong the noise applied is
-    learning_rate: float
-        learning rate to use for optimisation process, default 0.02
-    iterations: int
-        optimisation iterations (per audio segment), default 300
     logs: bool,
         whether to make logs of values used in loss function, default False
     log_file: str
         name for log file is log = True
-    target: str
-        id of a saved voice for target-based optimisation, default None
+    learning_rate: float
+        learning rate to use for optimisation process, default 0.02
+    iterations: int
+        optimisation iterations (per audio segment), default 300
     """
 
     cli.check_file_exist(config_file, "config", True)
@@ -95,12 +93,10 @@ def main(
             "Initialising perturbation generator...",
             PerturbationGenerator,
             config_file,
-            cdpam,
             avc,
             freevc,
             xtts,
             perturbation_level / 1000,
-            cdpam_weight,
             distance_weight,
             snr_weight,
             perturbation_norm_weight,
@@ -151,7 +147,7 @@ def main(
 
     cli.with_spinner(
         "Writing protected wav to output file...",
-        sf.write,
+        torchaudio.save,
         res_filename,
         target_audio_srs,
         perturber.data_params.sampling_rate,
