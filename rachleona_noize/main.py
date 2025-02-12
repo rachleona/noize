@@ -155,4 +155,9 @@ def protect(
 
     cli.report_operation_complete("Perturbation application complete")
 
-app.add_typer(voices.app, name="voices", help="Manage saved target voices to be used in protection application")
+
+app.add_typer(
+    voices.app,
+    name="voices",
+    help="Manage saved target voices to be used in protection application",
+)

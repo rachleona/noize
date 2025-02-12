@@ -9,7 +9,6 @@ from rich.progress import track
 from rachleona_noize.utils import (
     get_tgt_embs,
     get_hparams_from_file,
-
 )
 
 
@@ -112,7 +111,13 @@ class PerturbationGenerator:
         pths_location = Path(os.path.join(dirname, "misc"))
 
         # set up OpenVoice model
-        self.model = init_ov(misc, data_params, model_params, self.DEVICE, os.path.join(pths_location, "checkpoint.pth"))
+        self.model = init_ov(
+            misc,
+            data_params,
+            model_params,
+            self.DEVICE,
+            os.path.join(pths_location, "checkpoint.pth"),
+        )
 
         # set up paths for weights and info needed for other models
         self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
@@ -157,7 +162,14 @@ class PerturbationGenerator:
         else:
             self.logger = None
 
-        self.quality_func = generate_antifake_quality_func(os.path.join(pths_location, "points.csv"), data_params.sampling_rate, self.SNR_WEIGHT, self.PERTURBATION_NORM_WEIGHT, self.FREQUENCY_WEIGHT, self.logger)
+        self.quality_func = generate_antifake_quality_func(
+            os.path.join(pths_location, "points.csv"),
+            data_params.sampling_rate,
+            self.SNR_WEIGHT,
+            self.PERTURBATION_NORM_WEIGHT,
+            self.FREQUENCY_WEIGHT,
+            self.logger,
+        )
 
     def generate_loss_function(self, src):
         """

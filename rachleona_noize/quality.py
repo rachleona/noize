@@ -3,7 +3,9 @@ import torch
 import torchaudio
 
 
-def generate_antifake_quality_func(points_file, sr, snr_weight, perturbation_norm_weight, frequency_weight, logger):
+def generate_antifake_quality_func(
+    points_file, sr, snr_weight, perturbation_norm_weight, frequency_weight, logger
+):
     """
     generates function to calculate the quality term in perturbation generation loss
     combines magnitude of perturbation, signal-to-noise ratio and frequency filtering

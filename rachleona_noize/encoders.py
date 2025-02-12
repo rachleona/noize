@@ -54,7 +54,7 @@ class EncoderLoss:
 
     def loss(self, new_tensor):
         new_emb = self.emb_f(new_tensor)
-        
+
         # maximise distance from original embedding
         euc_dist = torch.linalg.vector_norm(self.src_emb - new_emb)
 
@@ -258,17 +258,17 @@ def ov_extract_se(
 def xtts_get_emb(model, audio, sr):
     """
     Extracts XTTS Speaker Embeddings from a given audio tensor
-    Adapted from original XTTS code 
+    Adapted from original XTTS code
 
     Parameters
     ----------
-    model 
+    model
         XTTS model instance
     audio : torch.Tensor
         the audio waveform data in tensor form
     sr : int
         sampling rate of audio
-        
+
     Returns
     -------
     np.ndarray
@@ -287,6 +287,7 @@ def xtts_get_emb(model, audio, sr):
         .to(model.device)
     )
 
+
 def init_ov(misc, data_params, model_params, device, ckpt_path):
     model = SynthesizerTrn(
         len(getattr(misc, "symbols", [])),
@@ -302,8 +303,6 @@ def init_ov(misc, data_params, model_params, device, ckpt_path):
         )
         model.load_state_dict(checkpoint_dict["model"], strict=False)
     except FileNotFoundError:
-        raise ConfigError(
-            "Cannot find checkpoint for openvoice"
-        )
-    
+        raise ConfigError("Cannot find checkpoint for openvoice")
+
     return model

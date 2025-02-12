@@ -100,6 +100,8 @@ def get_tgt_embs(target_id, pths_location, device):
     voices_dir = os.path.join(pths_location, "voices", target_id, "")
     paths = glob(f"{ voices_dir }*.pth")
 
+    # todo check target exists?
+
     target = {}
     for p in paths:
         name = os.path.basename(p)[:-4]
