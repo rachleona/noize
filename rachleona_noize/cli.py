@@ -149,11 +149,11 @@ def report_config_error(err):
     raise typer.Exit(2)
 
 
-def report_perturbation_complete():
+def report_operation_complete(msg):
     """
-    Prints out success message for when perturbation application is complete
+    Prints out success message with bold text and sparkles
     """
-    print(":sparkles: [bold]Perturbation application complete[/] :sparkles:")
+    print(f":sparkles: [bold]{ msg }[/] :sparkles:")
 
 
 def warn(msg):

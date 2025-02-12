@@ -153,9 +153,6 @@ def protect(
         perturber.data_params.sampling_rate,
     )
 
-    cli.report_perturbation_complete()
+    cli.report_operation_complete("Perturbation application complete")
 
-
-# todo list target voices
-# todo play voice
-# todo add target voice instance
+app.add_typer(voices.app, name="voices", help="Manage saved target voices to be used in protection application")
