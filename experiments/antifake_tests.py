@@ -1,4 +1,4 @@
-from rachleona_noize.main import main as noize
+from rachleona_noize.cli.main import main as noize
 import os
 
 os.makedirs("logs", exist_ok=True)

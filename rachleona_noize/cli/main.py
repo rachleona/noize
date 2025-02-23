@@ -1,16 +1,17 @@
-import rachleona_noize.cli as cli
+import rachleona_noize.cli.cli as cli
 import os
 import re
 import torchaudio
 import typer
+import soundfile as sf
 import warnings
 
 from pathlib import Path
-from rachleona_noize.perturb import PerturbationGenerator
+from rachleona_noize.perturb.perturb import PerturbationGenerator
 from typing import Optional
 from typing_extensions import Annotated
-from rachleona_noize.utils import split_audio, ConfigError
-import rachleona_noize.voices as voices
+from rachleona_noize.utils.utils import split_audio, ConfigError
+import rachleona_noize.cli.voices as voices
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
@@ -24,7 +25,7 @@ warnings.filterwarnings(
 
 
 # default constants
-dirpath = os.path.dirname(__file__)
+dirpath = os.path.dirname(os.path.dirname(__file__))
 default_config_path = os.path.join(dirpath, "config.json")
 
 
@@ -147,7 +148,7 @@ def protect(
 
     cli.with_spinner(
         "Writing protected wav to output file...",
-        torchaudio.save,
+        sf.write,
         res_filename,
         target_audio_srs,
         perturber.data_params.sampling_rate,

@@ -2,11 +2,11 @@ import os
 import torch
 
 from pathlib import Path
-from rachleona_noize.encoders import *
-from rachleona_noize.logging import Logger
-from rachleona_noize.quality import generate_antifake_quality_func
+from rachleona_noize.perturb.encoders import *
+from rachleona_noize.utils.logging import Logger
+from rachleona_noize.perturb.quality import generate_antifake_quality_func
 from rich.progress import track
-from rachleona_noize.utils import (
+from rachleona_noize.utils.utils import (
     get_tgt_embs,
     get_hparams_from_file,
 )
@@ -169,6 +169,7 @@ class PerturbationGenerator:
             self.PERTURBATION_NORM_WEIGHT,
             self.FREQUENCY_WEIGHT,
             self.logger,
+            self.DEVICE
         )
 
     def generate_loss_function(self, src):
@@ -280,4 +281,4 @@ class PerturbationGenerator:
             padded = padding(perturbation.detach())
             total_perturbation += padded[:l]
 
-        return total_perturbation.cpu().detach()
+        return total_perturbation.cpu().detach().numpy()

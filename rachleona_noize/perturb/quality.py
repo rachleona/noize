@@ -4,7 +4,7 @@ import torchaudio
 
 
 def generate_antifake_quality_func(
-    points_file, sr, snr_weight, perturbation_norm_weight, frequency_weight, logger
+    points_file, sr, snr_weight, perturbation_norm_weight, frequency_weight, logger, device
 ):
     """
     generates function to calculate the quality term in perturbation generation loss
@@ -44,7 +44,7 @@ def generate_antifake_quality_func(
         quality_snr = 10 * torch.log10(signal_power / (noise_power + 1e-8))
 
         # calculate frequency filter
-        spectrogram = torchaudio.transforms.Spectrogram().cuda()
+        spectrogram = torchaudio.transforms.Spectrogram().to(device)
         diff_spec = spectrogram(perturbation.unsqueeze(0))[0]
 
         # ys is scaled to 0-1 inversely, with originally large values close to 0, vice versa

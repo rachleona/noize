@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-noize = 'rachleona_noize.main:app'
+noize = 'rachleona_noize.cli.main:app'
 
 
 [build-system]
