@@ -42,6 +42,7 @@ def protect(
     xtts: bool = True,
     logs: bool = False,
     log_file: str = "log.csv",
+    resource_log: Annotated[Optional[Path], typer.Option()] = None,
     learning_rate: float = 0.02,
     iterations: int = 500,
     distance_weight: int = 2,
@@ -109,6 +110,7 @@ def protect(
             iterations,
             logs,
             target,
+            resource_log
         )
     except ConfigError as err:
         cli.report_config_error(err)
