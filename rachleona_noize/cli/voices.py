@@ -1,7 +1,6 @@
 import librosa
 import numpy as np
 import os
-import pygame
 import shutil
 import torch
 import torchaudio
@@ -17,13 +16,16 @@ from rachleona_noize.cli.cli import (
 )
 from rachleona_noize.perturb.encoders import xtts_get_emb, ov_extract_se, init_ov
 from rachleona_noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
-from rachleona_noize.utils.utils import get_hparams_from_file
-from rich import print
+from rachleona_noize.utils.utils import get_hparams_from_file, block_print, enable_print
 from time import sleep
 from TTS.api import TTS
 from typing import Optional
 from typing_extensions import Annotated
 
+# pygame has an annoying welcome message so override stdout here to keep cli clean
+block_print()
+import pygame
+enable_print()
 
 app = typer.Typer()
 

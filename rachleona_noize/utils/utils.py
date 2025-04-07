@@ -2,11 +2,19 @@ import json
 import librosa
 import os
 import torch
+import sys
 
 from glob import glob
 from faster_whisper import WhisperModel
 from rachleona_noize.openvoice.utils import HParams
 
+
+def block_print():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enable_print():
+    sys.stdout = sys.__stdout__
 
 def split_audio(audio_srs, device, sampling_rate):
     """
