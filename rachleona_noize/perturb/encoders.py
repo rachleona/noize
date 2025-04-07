@@ -182,7 +182,7 @@ def generate_avc_loss(src, perturber):
 def generate_xtts_loss(src, perturber):
     """
     Generates EncoderLoss instance based on current source clip and perturber config
-    Uses coqui ViTS speaker encoder
+    Uses coqui XTTS speaker encoder
     (H/ASP speaker recognition model based on ResNet architecture)
 
     Parameters
@@ -196,8 +196,7 @@ def generate_xtts_loss(src, perturber):
     -------
     EncoderLoss
     """
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(perturber.DEVICE)
-
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(perturber.DEVICE)
     model = tts.synthesizer.tts_model
     get_emb = lambda n: xtts_get_emb(model, n, perturber.data_params.sampling_rate)
 
@@ -207,7 +206,7 @@ def generate_xtts_loss(src, perturber):
         src_emb,
         tgt_emb,
         get_emb,
-        perturber.YOURTTS_WEIGHT,
+        perturber.XTTS_WEIGHT,
         1.2,
         "xtts",
         perturber.logger,

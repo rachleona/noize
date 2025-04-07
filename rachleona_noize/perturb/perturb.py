@@ -107,7 +107,7 @@ class PerturbationGenerator:
         self.hann_window = {}
 
         # misc folder location
-        dirname = os.path.dirname(__file__)
+        dirname = os.path.dirname(os.path.dirname(__file__))
         pths_location = Path(os.path.join(dirname, "misc"))
 
         # set up OpenVoice model
@@ -121,6 +121,8 @@ class PerturbationGenerator:
 
         # set up paths for weights and info needed for other models
         self.avc_ckpt = os.path.join(pths_location, "avc_model.ckpt")
+        self.xtts_config = os.path.join(pths_location, "xtts", "config.json")
+        self.xtts_ckpt_dir = os.path.join(pths_location, "xtts", "")
 
         # log total loss and openvoice embeddings difference by default
         log_values = ["loss", "dist"]
