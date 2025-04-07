@@ -44,7 +44,7 @@ def protect(
     log_file: str = "log.csv",
     resource_log: Annotated[Optional[Path], typer.Option()] = None,
     learning_rate: float = 0.02,
-    iterations: int = 500,
+    iterations: int = 300,
     distance_weight: int = 2,
     snr_weight: float = 0.025,
     perturbation_norm_weight: float = 0.25,
