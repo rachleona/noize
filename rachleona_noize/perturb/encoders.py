@@ -7,7 +7,8 @@ from rachleona_noize.openvoice.mel_processing import spectrogram_torch
 from rachleona_noize.openvoice.models import SynthesizerTrn
 from rachleona_noize.utils.utils import ConfigError
 
-from TTS.api import TTS
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
 
 
 class EncoderLoss:
@@ -182,7 +183,7 @@ def generate_avc_loss(src, perturber):
 def generate_xtts_loss(src, perturber):
     """
     Generates EncoderLoss instance based on current source clip and perturber config
-    Uses coqui ViTS speaker encoder
+    Uses coqui XTTS speaker encoder
     (H/ASP speaker recognition model based on ResNet architecture)
 
     Parameters
@@ -196,9 +197,12 @@ def generate_xtts_loss(src, perturber):
     -------
     EncoderLoss
     """
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(perturber.DEVICE)
+    config = XttsConfig()
+    config.load_json(perturber.xtts_config)
+    model = Xtts.init_from_config(config)
+    model.load_checkpoint(config, checkpoint_dir=perturber.xtts_ckpt_dir)
+    model.to(perturber.DEVICE)
 
-    model = tts.synthesizer.tts_model
     get_emb = lambda n: xtts_get_emb(model, n, perturber.data_params.sampling_rate)
 
     src_emb = get_emb(src).detach()
@@ -207,7 +211,7 @@ def generate_xtts_loss(src, perturber):
         src_emb,
         tgt_emb,
         get_emb,
-        perturber.YOURTTS_WEIGHT,
+        perturber.XTTS_WEIGHT,
         1.2,
         "xtts",
         perturber.logger,
