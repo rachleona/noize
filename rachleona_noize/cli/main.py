@@ -1,7 +1,7 @@
 import rachleona_noize.cli.cli as cli
 import os
 import re
-import torchaudio
+import tracemalloc
 import typer
 import soundfile as sf
 import warnings
@@ -119,6 +119,7 @@ def protect(
     if output_dir is None:
         output_dir = cli.get_output_dir()
 
+    if resource_log is not None: tracemalloc.start()
     src_segments = cli.with_spinner(
         "Loading audio file to be protected...",
         split_audio,
@@ -157,6 +158,7 @@ def protect(
     )
 
     cli.report_operation_complete("Perturbation application complete")
+    if resource_log is not None: tracemalloc.stop()
 
 
 app.add_typer(
