@@ -7,8 +7,7 @@ from rachleona_noize.openvoice.mel_processing import spectrogram_torch
 from rachleona_noize.openvoice.models import SynthesizerTrn
 from rachleona_noize.utils.utils import ConfigError
 
-from TTS.tts.configs.xtts_config import XttsConfig
-from TTS.tts.models.xtts import Xtts
+from TTS.api import TTS
 
 
 class EncoderLoss:
@@ -197,11 +196,9 @@ def generate_xtts_loss(src, perturber):
     -------
     EncoderLoss
     """
-    config = XttsConfig()
-    config.load_json(perturber.xtts_config)
-    model = Xtts.init_from_config(config)
-    model.load_checkpoint(config, checkpoint_dir=perturber.xtts_ckpt_dir)
-    model.to(perturber.DEVICE)
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(perturber.DEVICE)
+    model = tts.synthesizer.tts_model
+    get_emb = lambda n: xtts_get_emb(model, n, perturber.data_params.sampling_rate)
 
     get_emb = lambda n: xtts_get_emb(model, n, perturber.data_params.sampling_rate)
 
