@@ -291,7 +291,6 @@ class PerturbationGenerator:
 
             if self.resource_log is not None:
                 start = time.perf_counter()
-                if self.DEVICE == "cpu": tracemalloc.start()
 
             loss_f = self.generate_loss_function(segment)
             initial_params = torch.ones(segment["tensor"].shape).to(self.DEVICE)
@@ -304,7 +303,7 @@ class PerturbationGenerator:
             if self.resource_log is not None:
                 if self.DEVICE == "cpu":
                     peak_mem = tracemalloc.get_traced_memory()[1]
-                    tracemalloc.stop()
+                    tracemalloc.reset_peak()
                 else:
                     peak_mem = torch.cuda.max_memory_allocated()
 
