@@ -248,7 +248,7 @@ def calculate_embs(id, config_file, device):
     )
 
     # initialise xtts
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(device)
     xtts = tts.synthesizer.tts_model
 
     # initialise freevc
