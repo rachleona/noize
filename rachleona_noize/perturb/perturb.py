@@ -232,7 +232,7 @@ class PerturbationGenerator:
 
         return loss
 
-    def minimize(self, function, initial_parameters, segment_id):
+    def minimize(self, function, initial_parameters, segment_id, track_func=None):
         """
         Uses torch optimiser to minimise loss value based on loss function and initial parameters given
         Each step of the optimiser is tied to a progress tracker to be shown on the CLI
@@ -257,9 +257,10 @@ class PerturbationGenerator:
         params.requires_grad_()
         optimizer = torch.optim.Adam([params], lr=self.LEARNING_RATE)
 
-        for _ in track(
-            range(self.ITERATIONS), description=f"Processing segment {segment_id}"
-        ):
+        if track_func is None:
+            track_func = lambda x, y: track(x, description=f"Processing segment {y}")
+
+        for _ in track_func(range(self.ITERATIONS), segment_id):
             optimizer.zero_grad()
             loss = function(params)
             loss.backward()
@@ -267,7 +268,7 @@ class PerturbationGenerator:
 
         return params / torch.max(params) * self.PERTURBATION_LEVEL
 
-    def generate_perturbations(self, src_segments, l):
+    def generate_perturbations(self, src_segments, l, track_func=None):
         """
         Given a list of audio segments and expected shape of the perturbation tensor,
         calls the two methods above to generate perturbation for each segment and unifies
@@ -295,7 +296,7 @@ class PerturbationGenerator:
             loss_f = self.generate_loss_function(segment)
             initial_params = torch.ones(segment["tensor"].shape).to(self.DEVICE)
 
-            perturbation = self.minimize(loss_f, initial_params, segment["id"])
+            perturbation = self.minimize(loss_f, initial_params, segment["id"], track_func=track_func)
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))
             padded = padding(perturbation.detach())
             total_perturbation += padded[:l]

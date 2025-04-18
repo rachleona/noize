@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <!-- UIkit CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.23.6/dist/css/uikit.min.css" />
+    <!-- UIkit JS -->
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.23.6/dist/js/uikit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.23.6/dist/js/uikit-icons.min.js"></script>
+    
+    <script src="{{ url_for('static', filename='index.js') }}"></script>
+    <title>Noize Web</title>
+</head>
+<body class="uk-height-viewport">
+    <div id="main" class="uk-container uk-padding">
+        <h1>Noize Web</h1>
+        <form class="uk-padding uk-padding-remove-horizontal" enctype="multipart/form-data" action="/" method="POST">
+            <fieldset class="uk-fieldset">
+        
+                <label class="uk-form-label" for="audio-file">Audio file (WAV only)</label>
+                <div class="uk-margin">
+                    <div class="uk-margin" uk-margin>
+                        <div uk-form-custom="target: true">
+                            <input id="src-audio" name="src_audio" type="file" aria-label="Custom controls" accept=".wav" required>
+                            <input class="uk-input uk-form-width-medium" type="text" placeholder="Select file" aria-label="Custom controls" disabled>
+                        </div>
+                    </div>
+                </div>
+        
+                <label class="uk-form-label" for="perturbation-level">Noise level</label>
+                <div class="uk-margin uk-grid-small slider-wrapper" uk-grid>
+                    <div class="uk-width-3-4@s">
+                        <input id="perturbation-level" name="perturbation_level" class="uk-range" type="range" value="5" min="1" max="10" step="1" aria-label="Range">
+                    </div>
+                    <div class="uk-width-1-4@s">
+                        <p id="pl-value" class="slider-value">5</p>
+                    </div>
+                </div>
+                
+                <label class="uk-form-label" for="target-select">Noise target</label>
+                <div class="uk-margin">
+                    <select id="target-select" class="uk-select" aria-label="Select" name="target">
+                        {% for voice in voices %}
+                            <option value="{{ voice }}">{{ voice }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <ul uk-accordion>
+                    <li>
+                        <a class="uk-accordion-title" href>Advanced options</a>
+                        <div class="uk-accordion-content">
+                            <label class="uk-form-label">Encoders</label>
+                            <div class="uk-margin uk-grid-small uk-child-width-auto uk-grid">
+                                <label><input name="avc" class="uk-checkbox" type="checkbox" checked> AdaptVC</label>
+                                <label><input name="freevc" class="uk-checkbox" type="checkbox" checked> FreeVC</label>
+                                <label><input name="xtts" class="uk-checkbox" type="checkbox" checked> XTTS</label>
+                            </div>
+                            
+                            <label class="uk-form-label" for="iterations">Iterations</label>
+                            <div class="uk-margin uk-grid-small slider-wrapper" uk-grid>
+                                <div class="uk-width-3-4@s">
+                                    <input id="iterations" name="iterations" class="uk-range" type="range" value="300" min="50" max="1000" step="50" aria-label="Range">
+                                </div>
+                                <div class="uk-width-1-4@s">
+                                    <p id="i-value" class="slider-value">300</p>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+                
+            </fieldset>
+        </form>
+        
+        <div uk-grid class="uk-margin-large-bottom uk-margin-xsmall-left uk-margin-xsmall-right uk-child-width-expand">
+            <button id="reset-btn" class="uk-button uk-button-danger">Clear</button>
+            <button id="submit-btn" class="uk-button uk-button-primary">Apply protection</button>
+        </div>
+        <div class="uk-margin-large-top uk-child-width-expand@s" uk-grid uk-height-match="target: > div > .uk-card">
+            <div>
+                <div id="tasks-card" class="uk-card-small uk-card-secondary uk-padding-small">
+                    <div class="uk-card-header">
+                        
+                        <h3 class="uk-card-title"><span uk-icon="icon: future;ratio: 1.5" class="uk-margin-small-right"></span>  In progress</h3>
+                    </div>
+                    <hr class="uk-divider-icon">
+                    <div class="uk-card-body uk-height-large uk-overflow-auto">
+                        <ul uk-accordion="multiple: true">
+                            {% for task in tasks %}
+                            <li id="{{ task['id'] }}" class="task-entry">
+                                <a class="uk-accordion-title uk-text-uppercase" href>Job {{ task['id'] }}</a>
+                                <div class="uk-accordion-content">
+                                    <p><strong>File name:</strong> {{ task['src_file'] }}</p>
+                                    <ul class="uk-comment-meta uk-subnav uk-subnav-divider uk-margin-remove-top">
+                                        <li><a href="#">Noise level {{ task['perturbation_level'] }}</a></li>
+                                        <li><a href="#">{{ task['iterations'] }} iterations</a></li>
+                                        <li><a href="#">Target: {{ task['target'] }}</a></li>
+                                        <li><a href="#">Encoders: {{ task['encoders'] }}</a></li>
+                                    </ul>
+                                    <p class="uk-text-warning uk-text-uppercase">Waiting for worker to start</p>
+                                    <!-- <progress class="uk-progress" value="100" max="300"></progress> -->
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div id="results-card" class="uk-card-small uk-card-secondary uk-padding-small">
+                    <div class="uk-card-header">
+                        
+                        <h3 class="uk-card-title"><span uk-icon="icon: check;ratio: 1.5" class="uk-margin-small-right"></span>  Completed</h3>
+                    </div>
+                    <hr class="uk-divider-icon">
+                    <div class="uk-card-body uk-overflow-auto uk-height-large">
+                        {% for res in done %}
+                        <div class="uk-width-expand res-entry">
+                            <h4><strong>{{ res['output_filename'] }}</strong></h4>
+                            <ul class="uk-comment-meta uk-subnav uk-subnav-divider uk-margin-remove-top">
+                                <li><a href="#">Noise level {{ res['perturbation_level'] }}</a></li>
+                                <li><a href="#">{{ res['iterations'] }} iterations</a></li>
+                                <li><a href="#">Target: {{ res['target'] }}</a></li>
+                                <li><a href="#">Encoders: {{ res['encoders'] }}</a></li>
+                            </ul>
+                            <form class="uk-form-stacked" data-job="{{ res['job_id'] }}" data-output="{{ res['output_filename' ]}}">
+                                <div>
+                                    <label><input name="avc" class="uk-checkbox" type="checkbox" checked> Delete after download</label>
+                                </div>
+                                <button class="uk-margin uk-button uk-button-danger uk-width-1-1">Download</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+</body>
+</html>

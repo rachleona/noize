@@ -1,3 +1,4 @@
+import atexit
 import rachleona_noize.cli.cli as cli
 import os
 import re
@@ -8,6 +9,8 @@ import warnings
 
 from pathlib import Path
 from rachleona_noize.perturb.perturb import PerturbationGenerator
+from rachleona_noize.web.server import app as server
+from rachleona_noize.web.queue import activate_worker, stop_worker
 from typing import Optional
 from typing_extensions import Annotated
 from rachleona_noize.utils.utils import split_audio, ConfigError
@@ -160,7 +163,12 @@ def protect(
     cli.report_operation_complete("Perturbation application complete")
     if resource_log is not None: tracemalloc.stop()
 
-
+@app.command()
+def web(port: int = 5000, debug: bool = False):
+    activate_worker()
+    atexit.register(stop_worker)
+    server.run(port=port, debug=debug, host="0.0.0.0")
+    
 app.add_typer(
     voices.app,
     name="voices",
