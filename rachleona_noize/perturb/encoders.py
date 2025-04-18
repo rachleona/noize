@@ -196,7 +196,9 @@ def generate_xtts_loss(src, perturber):
     -------
     EncoderLoss
     """
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(perturber.DEVICE)
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(
+        perturber.DEVICE
+    )
     model = tts.synthesizer.tts_model
     get_emb = lambda n: xtts_get_emb(model, n, perturber.data_params.sampling_rate)
 

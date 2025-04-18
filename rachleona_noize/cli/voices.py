@@ -25,6 +25,7 @@ from typing_extensions import Annotated
 # pygame has an annoying welcome message so override stdout here to keep cli clean
 block_print()
 import pygame
+
 enable_print()
 
 app = typer.Typer()
@@ -197,6 +198,7 @@ def delete(id: str):
     """
     target_dir = os.path.join(dirpath, "misc", "voices", id)
     if os.path.isdir(target_dir):
+        # todo: change to shutil
         os.rmdir(target_dir)
         report_operation_complete(
             f"All voice embeddings under id { id } deleted successfully"
@@ -248,7 +250,9 @@ def calculate_embs(id, config_file, device):
     )
 
     # initialise xtts
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(device)
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(
+        device
+    )
     xtts = tts.synthesizer.tts_model
 
     # initialise freevc

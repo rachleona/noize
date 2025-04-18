@@ -12,6 +12,7 @@ from torch.types import Storage
 
 _WEIGHTS_ONLY = Version(torch.__version__) >= Version("2.4")
 
+
 def get_user_data_dir(appname: str) -> Path:
     TTS_HOME = os.environ.get("TTS_HOME")
     XDG_DATA_HOME = os.environ.get("XDG_DATA_HOME")
@@ -23,7 +24,8 @@ def get_user_data_dir(appname: str) -> Path:
         import winreg  # pylint: disable=import-outside-toplevel
 
         key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
         )
         dir_, _ = winreg.QueryValueEx(key, "Local AppData")
         ans = Path(dir_).resolve(strict=False)
@@ -33,9 +35,12 @@ def get_user_data_dir(appname: str) -> Path:
         ans = Path.home().joinpath(".local/share")
     return ans.joinpath(appname)
 
+
 def load_fsspec(
     path: str | os.PathLike[Any],
-    map_location: str | Callable[[Storage, str], Storage] | torch.device | dict[str, str] | None = None,
+    map_location: (
+        str | Callable[[Storage, str], Storage] | torch.device | dict[str, str] | None
+    ) = None,
     *,
     cache: bool = True,
     **kwargs: Any,
@@ -58,7 +63,11 @@ def load_fsspec(
             filecache={"cache_storage": str(get_user_data_dir("tts_cache"))},
             mode="rb",
         ) as f:
-            return torch.load(f, map_location=map_location, weights_only=_WEIGHTS_ONLY, **kwargs)
+            return torch.load(
+                f, map_location=map_location, weights_only=_WEIGHTS_ONLY, **kwargs
+            )
     else:
         with fsspec.open(str(path), "rb") as f:
-            return torch.load(f, map_location=map_location, weights_only=_WEIGHTS_ONLY, **kwargs)
+            return torch.load(
+                f, map_location=map_location, weights_only=_WEIGHTS_ONLY, **kwargs
+            )

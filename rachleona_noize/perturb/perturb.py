@@ -98,7 +98,7 @@ class PerturbationGenerator:
         iterations,
         logs,
         target,
-        resource_log
+        resource_log,
     ):
 
         self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -175,14 +175,14 @@ class PerturbationGenerator:
             self.PERTURBATION_NORM_WEIGHT,
             self.FREQUENCY_WEIGHT,
             self.logger,
-            self.DEVICE
+            self.DEVICE,
         )
 
         if resource_log is not None:
             self.resource_log = {
                 "filename": resource_log,
                 "segment_time": [],
-                "segment_mem": []
+                "segment_mem": [],
             }
         else:
             self.resource_log = None
@@ -296,7 +296,9 @@ class PerturbationGenerator:
             loss_f = self.generate_loss_function(segment)
             initial_params = torch.ones(segment["tensor"].shape).to(self.DEVICE)
 
-            perturbation = self.minimize(loss_f, initial_params, segment["id"], track_func=track_func)
+            perturbation = self.minimize(
+                loss_f, initial_params, segment["id"], track_func=track_func
+            )
             padding = torch.nn.ZeroPad1d((segment["start"], max(0, l - segment["end"])))
             padded = padding(perturbation.detach())
             total_perturbation += padded[:l]
@@ -308,13 +310,18 @@ class PerturbationGenerator:
                 else:
                     peak_mem = torch.cuda.max_memory_allocated()
 
-                self.resource_log['segment_time'].append(time.perf_counter() - start)
-                self.resource_log['segment_mem'].append(peak_mem)
+                self.resource_log["segment_time"].append(time.perf_counter() - start)
+                self.resource_log["segment_mem"].append(peak_mem)
 
         if self.resource_log is not None:
-            with open(self.resource_log['filename'], "a", newline="") as csvfile:
+            with open(self.resource_log["filename"], "a", newline="") as csvfile:
                 writer = csv.writer(csvfile)
                 for k in range(len(src_segments)):
-                    writer.writerow([self.resource_log['segment_time'][k], self.resource_log['segment_mem'][k]])
+                    writer.writerow(
+                        [
+                            self.resource_log["segment_time"][k],
+                            self.resource_log["segment_mem"][k],
+                        ]
+                    )
 
         return total_perturbation.cpu().detach().numpy()

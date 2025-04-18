@@ -34,7 +34,9 @@ const initCurrentJob = data => {
 
         const li = document.getElementById(data.job_id)
         li.querySelector('.uk-text-warning').setAttribute('hidden', 'hidden')
+        li.classList.add('uk-open')
         const progressDiv = document.createElement('div')
+        const progressBar = document.createElement('progress')
         const segReport = document.createElement('p')
         segReport.innerHTML = `Processing segment <span class='cur-seg'>1</span> / ${ data.nseg }`
         progressBar.classList.add('uk-progress')
@@ -42,31 +44,35 @@ const initCurrentJob = data => {
         progressBar.max = data.iterations
         progressDiv.appendChild(segReport)
         progressDiv.appendChild(progressBar)
+
+        li.appendChild(progressDiv)
 }
 
 const transferCompletedJob = id => {
     document.getElementById(id).remove()
-    const result = fetch(`/result/${ id }`).then(res => res.json()).then(json => json)
-    
-    const resNode = document.createElement('div')
-    resNode.classList.add('uk-width-expand res-entry')
-    res.innerHTML = `<h4><strong>${ result.output_filename }</strong></h4>
-                    <ul class="uk-comment-meta uk-subnav uk-subnav-divider uk-margin-remove-top">
-                        <li><a href="#">Noise level ${ result.perturbation_level }</a></li>
-                        <li><a href="#">${ result.iterations } iterations</a></li>
-                        <li><a href="#">Target: ${ result.target }</a></li>
-                        <li><a href="#">Encoders: ${ result.encoders }</a></li>
-                    </ul>
-                    <form class="uk-form-stacked" data-job="${ result.job_id }" data-output="${ result.output_filename }">
-                        <div>
-                            <label><input name="avc" class="uk-checkbox" type="checkbox" checked> Delete after download</label>
-                        </div>
-                        <button class="uk-margin uk-button uk-button-danger uk-width-1-1">Download</button>
-                    </form>`
+    fetch(`/result/${ id }`).then(res => res.json()).then(json => {
 
-    const resDiv = document.getElementById('results-card').querySelector('uk-card-body')
-    resDiv.insertBefore(resNode, resDiv.firstChild())
-    resNode.querySelector('form').addEventListener('submit', downloadListener)
+        const resNode = document.createElement('div')
+        resNode.classList.add('uk-width-expand', 'res-entry')
+        resNode.innerHTML = `<h4><strong>${ json.output_filename }</strong></h4>
+                        <ul class="uk-comment-meta uk-subnav uk-subnav-divider uk-margin-remove-top">
+                            <li><a href="#">Noise level ${ json.perturbation_level }</a></li>
+                            <li><a href="#">${ json.iterations } iterations</a></li>
+                            <li><a href="#">Target: ${ json.target }</a></li>
+                            <li><a href="#">Encoders: ${ json.encoders }</a></li>
+                        </ul>
+                        <form class="uk-form-stacked" data-job="${ json.job_id }" data-output="${ json.output_filename }">
+                            <div>
+                                <label><input name="avc" class="uk-checkbox" type="checkbox" checked> Delete after download</label>
+                            </div>
+                            <button class="uk-margin uk-button uk-button-danger uk-width-1-1">Download</button>
+                        </form>`
+    
+        const resDiv = document.getElementById('results-card').querySelector('.uk-card-body')
+        resDiv.insertBefore(resNode, resDiv.firstChild)
+        resNode.querySelector('form').addEventListener('submit', downloadListener)
+    })
+    
 
 }
 
@@ -75,11 +81,16 @@ const downloadListener = event => {
     event.preventDefault()
     const form = event.target
 
-    fetch(`/download/${ form.dataset.output }`)
+    fetch(`/download/${ form.dataset.job }.wav`).then( res => res.blob() ).then( blob => {
+        const file = new File([blob], form.dataset.output);
+        const fileUrl = window.URL.createObjectURL(file);
+        window.location.assign(fileUrl);
+        if (form.querySelector('.uk-checkbox').checked) {
+            fetch(`/${ form.dataset.job }`, { method: 'DELETE' })
+            form.parentNode.remove()
+        }
+    });
 
-    if (form.querySelector('.uk-checkbox').checked) {
-        fetch(`/delete/${ form.dataset.job }`, { method: 'DELETE '})
-    }
     
 }
 
@@ -109,7 +120,7 @@ class ProgressChecker {
             }
 
             if (json.job_id !== this.current) {
-                transferCompletedJob(this.current)
+                if (this.current) transferCompletedJob(this.current)
                 this.current = json.job_id
                 initCurrentJob(json)
             } else {

@@ -113,7 +113,7 @@ def protect(
             iterations,
             logs,
             target,
-            resource_log
+            resource_log,
         )
     except ConfigError as err:
         cli.report_config_error(err)
@@ -122,7 +122,8 @@ def protect(
     if output_dir is None:
         output_dir = cli.get_output_dir()
 
-    if resource_log is not None: tracemalloc.start()
+    if resource_log is not None:
+        tracemalloc.start()
     src_segments = cli.with_spinner(
         "Loading audio file to be protected...",
         split_audio,
@@ -161,14 +162,17 @@ def protect(
     )
 
     cli.report_operation_complete("Perturbation application complete")
-    if resource_log is not None: tracemalloc.stop()
+    if resource_log is not None:
+        tracemalloc.stop()
+
 
 @app.command()
 def web(port: int = 5000, debug: bool = False):
     activate_worker()
     atexit.register(stop_worker)
     server.run(port=port, debug=debug, host="0.0.0.0")
-    
+
+
 app.add_typer(
     voices.app,
     name="voices",

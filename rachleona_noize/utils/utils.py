@@ -10,11 +10,13 @@ from rachleona_noize.openvoice.utils import HParams
 
 
 def block_print():
-    sys.stdout = open(os.devnull, 'w')
+    sys.stdout = open(os.devnull, "w")
+
 
 # Restore
 def enable_print():
     sys.stdout = sys.__stdout__
+
 
 def split_audio(audio_srs, device, sampling_rate):
     """
@@ -86,6 +88,7 @@ def split_audio(audio_srs, device, sampling_rate):
             start = int(max(0, segments[k + 1].start * 1000 - 80) * sr_constant)
 
     return res
+
 
 def get_tgt_embs(target_id, pths_location, device):
     """
