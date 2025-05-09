@@ -34,61 +34,87 @@ default_config_path = os.path.join(dirpath, "config.json")
 
 @app.command()
 def protect(
-    filepath: Annotated[Path, typer.Argument()] = None,
-    output_dir: Annotated[str, typer.Argument()] = None,
-    perturbation_level: int = 5,
-    target: str = None,
-    config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
-    output_filename: str = None,
-    avc: bool = True,
-    freevc: bool = True,
-    xtts: bool = True,
-    logs: bool = False,
-    log_file: str = "log.csv",
-    resource_log: Annotated[Optional[Path], typer.Option()] = None,
-    learning_rate: float = 0.02,
-    iterations: int = 300,
-    distance_weight: int = 2,
-    snr_weight: float = 0.025,
-    perturbation_norm_weight: float = 0.25,
-    frequency_weight: float = 1.5,
-    avc_weight: float = 25,
-    freevc_weight: float = 25,
-    xtts_weight: float = 25,
+    filepath: Annotated[
+        Path, typer.Argument(help=" path to the audio file to apply protection on")
+    ] = None,
+    output_dir: Annotated[
+        str,
+        typer.Argument(
+            help="name of output directory, will be created if not already exists"
+        ),
+    ] = None,
+    perturbation_level: Annotated[
+        int,
+        typer.Option(
+            help="values between 1-10, controls how strong the noise applied is"
+        ),
+    ] = 5,
+    target: Annotated[
+        str, typer.Option(help="id of a saved voice for target-based optimisation")
+    ] = None,
+    config_file: Annotated[
+        Optional[Path],
+        typer.Option(help="path to the config file, use official repo one by default"),
+    ] = default_config_path,
+    output_filename: Annotated[
+        str,
+        typer.Option(
+            help="name of protected file, uses protected_<filpath> by default",
+            show_default=False,
+        ),
+    ] = None,
+    avc: Annotated[
+        bool,
+        typer.Option(help="whether to use adaptVC encoder in perturbation calculation"),
+    ] = True,
+    freevc: Annotated[
+        bool,
+        typer.Option(help="whether to use FreeVC encoder in perturbation calculation"),
+    ] = True,
+    xtts: Annotated[
+        bool,
+        typer.Option(help="whether to use XTTS encoder in perturbation calculation"),
+    ] = True,
+    logs: Annotated[
+        bool, typer.Option(help="whether to log intermediate loss values")
+    ] = False,
+    log_file: Annotated[
+        str, typer.Option(help="name of log file is logs are requested")
+    ] = "log.csv",
+    resource_log: Annotated[
+        Optional[Path],
+        typer.Option(help="name of resource log file if logs are requested"),
+    ] = None,
+    learning_rate: Annotated[
+        float, typer.Option(help="learning rate to use for optimisation process")
+    ] = 0.02,
+    iterations: Annotated[
+        int, typer.Option(help="optimisation iterations (per audio segment)")
+    ] = 300,
+    distance_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 2,
+    snr_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 0.025,
+    perturbation_norm_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 0.25,
+    frequency_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 1.5,
+    avc_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 25,
+    freevc_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 25,
+    xtts_weight: Annotated[
+        float, typer.Option(help="weight used in loss functions")
+    ] = 25,
 ):
     """
-    Apply adversarial perturbation to produced protected audio file
-
-    Parameters
-    ----------
-    filepath: Path
-        path to the audio file to apply protection to
-    output_dir: str
-        name of output directory, will be created if no already exists
-    perturbation_level: int = 3
-        perturbation level between 1-5, controls how strong the noise applied is
-    target: str
-        id of a saved voice for target-based optimisation, default None
-    config_file: Path, optional
-        path to the config file, use official repo one by default
-    output_filename: str, optional
-        what to name the protected file, uses protected_<filpath> by default
-    cdpam: bool
-        whether to use cdpam quality term, default False to use AntiFake quality term
-    avc: bool
-        whether to use adaIN encoder in perturbation calculation, default True
-    freevc: bool
-        whether to use freeVC encoder in perturbation calculation, default True
-    xtts: bool
-        whether to use XTTS encoder in perturbation calculation, default True
-    logs: bool,
-        whether to make logs of values used in loss function, default False
-    log_file: str
-        name for log file is log = True
-    learning_rate: float
-        learning rate to use for optimisation process, default 0.02
-    iterations: int
-        optimisation iterations (per audio segment), default 300
+    Apply adversarial perturbation to produce protected audio file
     """
 
     cli.check_file_exist(config_file, "config", True)
@@ -167,7 +193,16 @@ def protect(
 
 
 @app.command()
-def web(port: int = 5000, debug: bool = False):
+def web(
+    port: Annotated[int, typer.Option(help="port for server to listen")] = 5000,
+    debug: Annotated[
+        bool, typer.Option(help="whether to start server in debug mode")
+    ] = False,
+):
+    """
+    Starts Flask server for web interface
+    """
+
     activate_worker()
     atexit.register(stop_worker)
     server.run(port=port, debug=debug, host="0.0.0.0")

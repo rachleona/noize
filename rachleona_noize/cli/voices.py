@@ -17,6 +17,7 @@ from rachleona_noize.cli.cli import (
 from rachleona_noize.perturb.encoders import xtts_get_emb, ov_extract_se, init_ov
 from rachleona_noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
 from rachleona_noize.utils.utils import get_hparams_from_file, block_print, enable_print
+from rich import print
 from time import sleep
 from TTS.api import TTS
 from typing import Optional
@@ -55,15 +56,16 @@ def list():
 
 
 @app.command()
-def play(id: str):
+def play(
+    id: Annotated[
+        str,
+        typer.Argument(
+            help="id of the saved voice to play, warning will be given if id does not exist"
+        ),
+    ]
+):
     """
     Plays 10s of the reference clip given for generating the voice embeddings of given id
-
-    Parameters
-    ----------
-    id : str
-        id of the saved voice to play
-        a warning will be printed id given does not exist
     """
     try:
         audio_path = os.path.join(dirpath, "misc", "voices", id, "src.wav")
@@ -87,27 +89,29 @@ def play(id: str):
 
 @app.command()
 def add(
-    id: str,
-    filepath: Annotated[Path, typer.Argument()] = None,
-    desc: str = "",
-    config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
-    device: str = DEVICE,
+    id: Annotated[str, typer.Argument(help="id/name for new voice")],
+    filepath: Annotated[
+        Path,
+        typer.Argument(
+            help="path to the WAV file to be used as reference for new voice"
+        ),
+    ] = None,
+    desc: Annotated[
+        str,
+        typer.Argument(help="description string to be saved alongside the embeddings"),
+    ] = "",
+    config_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            help="path to the config file containing metadata and hyperparameters needed for voice models used"
+        ),
+    ] = default_config_path,
+    device: Annotated[
+        str, typer.Option(help="device to conduct tensor calculations on")
+    ] = DEVICE,
 ):
     """
     Add a new saved voice for use as perturbation calculation target
-
-    Parameters
-    ----------
-    id : str
-        id/name for the new voice
-    filepath : Path
-        path to the WAV file to be used as reference to extract embeddings from
-    desc : str
-        description string to be saved alongside the embeddings
-    config_file : str
-        path to the config file containing metadata and hyperparameters needed for voice models used
-    device : str
-        device to conduct tensor calculations on
     """
     check_file_exist(filepath, "voice reference", True)
     pths_location = Path(os.path.join(dirpath, "misc"))
@@ -138,21 +142,24 @@ def add(
 
 @app.command()
 def reset(
-    id: str,
-    config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
-    device: str = DEVICE,
+    id: Annotated[
+        str,
+        typer.Argument(
+            help="id of the saved voice to play, warning will be given if id does not exist"
+        ),
+    ],
+    config_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            help="path to the config file containing metadata and hyperparameters needed for voice models used"
+        ),
+    ] = default_config_path,
+    device: Annotated[
+        str, typer.Option(help="device to conduct tensor calculations on")
+    ] = DEVICE,
 ):
     """
     Recalculates embeddings for a saved voice
-
-    Parameters
-    ----------
-    id : str
-        id of the voice to calculate embeddings for
-    config_file : str
-        path to the config file containing metadata and hyperparameters needed for voice models used
-    device : str
-        device to conduct tensor calculations on
     """
     try:
         with_spinner(
@@ -167,18 +174,18 @@ def reset(
 
 @app.command()
 def resetall(
-    config_file: Annotated[Optional[Path], typer.Option()] = default_config_path,
-    device: str = DEVICE,
+    config_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            help="path to the config file containing metadata and hyperparameters needed for voice models used"
+        ),
+    ] = default_config_path,
+    device: Annotated[
+        str, typer.Option(help="device to conduct tensor calculations on")
+    ] = DEVICE,
 ):
     """
     Recalculates embeddings for all saved voices
-
-    Parameters
-    ----------
-    config_file : str
-        path to the config file containing metadata and hyperparameters needed for voice models used
-    device : str
-        device to conduct tensor calculations on
     """
     voices_path = os.path.join(dirpath, "misc", "voices")
     voices = os.listdir(voices_path)
@@ -187,14 +194,16 @@ def resetall(
 
 
 @app.command()
-def delete(id: str):
+def delete(
+    id: Annotated[
+        str,
+        typer.Argument(
+            help="id of the saved voice to play, warning will be given if id does not exist"
+        ),
+    ],
+):
     """
     Deletes a saved voice from voice library
-
-    Parameters
-    ----------
-    id : str
-        id of the voice to delete
     """
     target_dir = os.path.join(dirpath, "misc", "voices", id)
     if os.path.isdir(target_dir):

@@ -94,6 +94,44 @@ def worker():
 
 
 class ProtectJob:
+    """
+    Defines a protection application job instance
+
+    ...
+
+    Attributes
+    ----------
+    id : uuid
+        unique id of the job
+    perturbation_level: int
+    target: str
+    avc: bool
+    freevc: bool
+    xtts: bool
+    iterations: int
+        user input for perturber settings
+    encoders: list[str]
+        string list of encoders to be used on this job
+    filepath: Path
+        path where input file has been saved to
+    oriname: str
+        original file name of input file
+    current_seg: int
+        tracks which segment is currently being processed
+    current_progress: int
+        tracks progress of current segment
+
+    Methods
+    -------
+    get_metadata()
+        returns dictionary containing main job metadata like perturber connfig, filepath etc
+    progress_tracker(r, seg_id)
+        progress tracker function to be used with optimisation loop
+    get_progress()
+        returns dictionary containing progress details
+
+    """
+
     def __init__(
         self, audio_file, perturbation_level, target, avc, freevc, xtts, iterations
     ):
@@ -103,8 +141,7 @@ class ProtectJob:
         self.avc = avc == "on"
         self.freevc = freevc == "on"
         self.xtts = xtts == "on"
-        # self.iterations = int(iterations)
-        self.iterations = 10
+        self.iterations = int(iterations)
         self.encoders = ["OpenVoice"]
 
         if self.avc:
@@ -165,6 +202,29 @@ class ProtectJob:
 
 
 class ProtectJobResult:
+    """
+    Result object containing data of finished jobs
+
+    ...
+
+    Attributes
+    ----------
+    job_id : uuid
+        unique id of the job
+    perturbation_level: int
+    target: str
+    encoders: list[str]
+    iterations: int
+        configuration used to run the job
+    output_filename: str
+        name of protected file
+
+    Methods
+    -------
+    get_metadata()
+        returns dictionary containing all attributes
+    """
+
     def __init__(self, job, output_filename):
         self.job_id = job.id
         self.perturbation_level = job.perturbation_level
