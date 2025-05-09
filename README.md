@@ -3,9 +3,6 @@
 
 # Noize CLI
 
-> [!NOTE]  
-> Development in progress!
-
 An easy-to-use CLI tool that uses **adversarial perturbation** to protect audio clips from being used in unauthorised voice cloning. Created as part of my final year project at the University of Cambridge. 
 
 <!--gif?-->
@@ -28,7 +25,7 @@ Inspired by [AntiFake][antifake] and [Glaze][glaze].
 ## ⚡️ Quick start
 
 > [!IMPORTANT]
-> Noize works best with GPUs as it requires a lot of computational power. Please ensure you have the necessary hardware before proceeding!
+> Noize works best with GPUs as it requires a lot of computational power. Please ensure you have the necessary hardware before proceeding! Otherwise please follow the guidance in the next section to run on runpod instead
 
 First, make sure you have [Git Large File Storage][git_lfs] installed as this repository includes some large model weights stored via Git LFS. If you don't have it, please download the package [here][git_lfs] and install via
 ```console
@@ -46,6 +43,11 @@ noize --help
 ```
 
 That's it! You are now ready to start using Noize :)
+
+## ⚡️ Using runpod template
+
+> [!NOTE]
+> Guidance to be added soon!
 
 ## 📖 Reference
 
@@ -86,6 +88,9 @@ $ noize [OPTIONS] COMMAND [ARGS]...
 #### `noize protect`
 
 Apply adversarial perturbation to produce protected audio file
+
+> [!TIP]
+> For best results, make sure to provide a voice that sounds different from the one you want to protect via the target option
 
 **Usage**:
 
@@ -169,8 +174,8 @@ noize("/path/to/audio.wav", "outputs/dir", output_filename="protected/audio.wav"
 ```
 All options available for the CLI are also accessible on Python!
 
-
-
+> [!CAUTION]
+> Perturbation level below 5 is not recommended and are only provided for research purposes
 
   
 
