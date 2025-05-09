@@ -1,4 +1,4 @@
-from rachleona_noize.cli.main import main as noize
+from noize.cli.main import main as noize
 import os
 from glob import glob
 

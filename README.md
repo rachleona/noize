@@ -34,7 +34,7 @@ git lfs install --skip-repo
 
 Then, install Noize using the following command
 ```console
-pip install git+https://github.com/rachleona/noize.git
+pip install git+https://github.com/[username_redacted]/noize.git
 ```
 
 And check using
@@ -169,7 +169,7 @@ $ noize voices [OPTIONS] COMMAND [ARGS]...
 ### Python
 Example usage in python:
 ```py
-from rachleona_noize.cli.main import protect as noize
+from noize.cli.main import protect as noize
 noize("/path/to/audio.wav", "outputs/dir", output_filename="protected/audio.wav", perturbation_level=10)
 ```
 All options available for the CLI are also accessible on Python!
@@ -211,7 +211,7 @@ This project was created with several key project as reference and includes many
 [part_ii_badge]:https://img.shields.io/badge/cambridge%20part%20ii-85B09A?style=for-the-badge
 [pytorch_badge]:https://img.shields.io/badge/pytorch-2.2+-ee4c2c.svg?style=for-the-badge
 [black_badge]:https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge
-[python_badge]:https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Frachleona%2Fnoize%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&style=for-the-badge
+[python_badge]:https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%[username_redacted]%2Fnoize%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&style=for-the-badge
 
 <!--package and repo links-->
 [black]:https://github.com/psf/black

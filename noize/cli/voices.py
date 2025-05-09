@@ -7,16 +7,16 @@ import torchaudio
 import typer
 
 from pathlib import Path
-from rachleona_noize.avc.model import SpeakerEncoder as AvcEncoder
-from rachleona_noize.cli.cli import (
+from noize.avc.model import SpeakerEncoder as AvcEncoder
+from noize.cli.cli import (
     warn,
     with_spinner,
     report_operation_complete,
     check_file_exist,
 )
-from rachleona_noize.perturb.encoders import xtts_get_emb, ov_extract_se, init_ov
-from rachleona_noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
-from rachleona_noize.utils.utils import get_hparams_from_file, block_print, enable_print
+from noize.perturb.encoders import xtts_get_emb, ov_extract_se, init_ov
+from noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
+from noize.utils.utils import get_hparams_from_file, block_print, enable_print
 from rich import print
 from time import sleep
 from TTS.api import TTS

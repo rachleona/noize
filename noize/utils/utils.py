@@ -6,7 +6,7 @@ import sys
 
 from glob import glob
 from faster_whisper import WhisperModel
-from rachleona_noize.openvoice.utils import HParams
+from noize.openvoice.utils import HParams
 
 
 def block_print():

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from rachleona_noize.avc.utils import (
+from noize.avc.utils import (
     get_spectrograms,
     utt_make_frames,
 )

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from rachleona_noize.freevc.utils import load_fsspec
+from noize.freevc.utils import load_fsspec
 from TTS.vc.layers.freevc.speaker_encoder.hparams import *
 from torchaudio.transforms import MelSpectrogram
 

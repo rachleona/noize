@@ -1,4 +1,4 @@
-from rachleona_noize.cli.main import protect as noize
+from noize.cli.main import protect as noize
 import os
 
 os.makedirs("res", exist_ok=True)

@@ -1,7 +1,7 @@
 import os
 
 from flask import Flask, render_template, request, send_file
-import rachleona_noize.web.queue as q
+import noize.web.queue as q
 
 app = Flask(__name__)
 dirpath = os.path.dirname(os.path.dirname(__file__))

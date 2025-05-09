@@ -1,5 +1,5 @@
 import atexit
-import rachleona_noize.cli.cli as cli
+import noize.cli.cli as cli
 import os
 import re
 import tracemalloc
@@ -8,13 +8,13 @@ import soundfile as sf
 import warnings
 
 from pathlib import Path
-from rachleona_noize.perturb.perturb import PerturbationGenerator
-from rachleona_noize.web.server import app as server
-from rachleona_noize.web.queue import activate_worker, stop_worker
+from noize.perturb.perturb import PerturbationGenerator
+from noize.web.server import app as server
+from noize.web.queue import activate_worker, stop_worker
 from typing import Optional
 from typing_extensions import Annotated
-from rachleona_noize.utils.utils import split_audio, ConfigError
-import rachleona_noize.cli.voices as voices
+from noize.utils.utils import split_audio, ConfigError
+import noize.cli.voices as voices
 
 app = typer.Typer(pretty_exceptions_enable=False)
 

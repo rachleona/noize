@@ -5,7 +5,7 @@ RUN apt remove -y python3-blinker
 RUN apt install -y git-lfs
 RUN git lfs install --skip-repo
 
-ADD rachleona-noize/ /noize/rachleona-noize
+ADD noize/ /noize/noize
 ADD pyproject.toml /noize/pyproject.toml
 
 RUN cd noize; pip install -e .

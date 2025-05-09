@@ -7,8 +7,8 @@ import time
 import uuid
 
 from collections import deque
-from rachleona_noize.perturb.perturb import PerturbationGenerator
-from rachleona_noize.utils.utils import split_audio
+from noize.perturb.perturb import PerturbationGenerator
+from noize.utils.utils import split_audio
 from threading import Thread
 from werkzeug.utils import secure_filename
 

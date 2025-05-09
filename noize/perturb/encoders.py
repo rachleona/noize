@@ -1,11 +1,11 @@
 import torch
 import torchaudio
 
-from rachleona_noize.avc.model import SpeakerEncoder as AvcEncoder
-from rachleona_noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
-from rachleona_noize.openvoice.mel_processing import spectrogram_torch
-from rachleona_noize.openvoice.models import SynthesizerTrn
-from rachleona_noize.utils.utils import ConfigError
+from noize.avc.model import SpeakerEncoder as AvcEncoder
+from noize.freevc.speaker_encoder import SpeakerEncoder as FvcEncoder
+from noize.openvoice.mel_processing import spectrogram_torch
+from noize.openvoice.models import SynthesizerTrn
+from noize.utils.utils import ConfigError
 
 from TTS.api import TTS
 

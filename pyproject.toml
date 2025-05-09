@@ -1,10 +1,7 @@
 [project]
-name = "rachleona-noize"
+name = "noize"
 version = "0.1.0"
 description = "A cli tool that uses adversarial perturbation to protect audio clips from being used in unauthorised voice cloning"
-authors = [
-    {name = "rachleona",email = "racheltam818@icloud.com"}
-]
 readme = "README.md"
 requires-python = ">=3.10 <3.12"
 dependencies = [
@@ -18,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-noize = 'rachleona_noize.cli.main:app'
+noize = 'noize.cli.main:app'
 
 
 [build-system]

@@ -5,11 +5,11 @@ import torch
 import tracemalloc
 
 from pathlib import Path
-from rachleona_noize.perturb.encoders import *
-from rachleona_noize.utils.logging import Logger
-from rachleona_noize.perturb.quality import generate_antifake_quality_func
+from noize.perturb.encoders import *
+from noize.utils.logging import Logger
+from noize.perturb.quality import generate_antifake_quality_func
 from rich.progress import track
-from rachleona_noize.utils.utils import (
+from noize.utils.utils import (
     get_tgt_embs,
     get_hparams_from_file,
 )
