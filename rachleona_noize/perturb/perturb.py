@@ -202,9 +202,6 @@ class PerturbationGenerator:
         -------
         loss : function
             The loss function for calculating perturbation needed for protecting this audio segment
-        source_se : torch.Tensor
-            OpenVoice tone colour embedding tensor extracted from the audio segment given
-            Will be used in calculating starting parameter for loss minimisation
         """
 
         # initialise all necessary encoders for calculating distance loss
@@ -246,6 +243,8 @@ class PerturbationGenerator:
         segment_id : int
             the id of the current segment we are calculating perturbation for
             used in progress tracker to report overall progress
+        track_func : function
+            progress tracking function to use with optimisation loop
 
         Returns
         -------
@@ -280,6 +279,8 @@ class PerturbationGenerator:
             A list of audio segment objects to produce perturbation for
         l : int
             size of the perturbation array to be returned
+        track_func : function
+            progress tracking function to use with optimisation loop
 
         Returns
         -------

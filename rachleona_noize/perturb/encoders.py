@@ -79,8 +79,8 @@ def generate_openvoice_loss(src, perturber):
 
     Parameters
     ----------
-    src_se : torch.Tensor
-        OpenVoice tone colour embedding of the source clip
+    src : torch.Tensor
+        source audio time series
     perturber : PerturbationGenerator
         perturbation generator instance that is going to use the loss function
 
@@ -272,7 +272,7 @@ def xtts_get_emb(model, audio, sr):
 
     Returns
     -------
-    np.ndarray
+    torch.Tensor
         perturbation to be added to the original audio time series to protect against voice cloning
     """
 
@@ -290,6 +290,27 @@ def xtts_get_emb(model, audio, sr):
 
 
 def init_ov(misc, data_params, model_params, device, ckpt_path):
+    """
+    Initialise OpenVoice model
+
+    Parameters
+    ----------
+    misc: dict
+        miscellaneous config for model setup, empty by default
+    data_params : HParams
+        data_params property from perturber config
+    model_params : HParams
+        data_params property from perturber config
+    device: str
+        device for storing tensors
+    ckpt_path: str
+        path to checkpoint file of pre-trained OpenVoice model
+
+    Returns
+    -------
+    SynthesizerTrn
+        intialised model
+    """
     model = SynthesizerTrn(
         len(getattr(misc, "symbols", [])),
         data_params.filter_length // 2 + 1,

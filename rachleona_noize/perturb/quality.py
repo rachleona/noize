@@ -21,8 +21,12 @@ def generate_antifake_quality_func(
     ----------
     src : torch.Tensor
         source audio tensor to compare to
-    perturber : PerturbationGenerator
-        perturber to be used with the generated quality function
+    snr_weight: float
+    perturbation_norm_weights: float
+    frequency_weight: float
+        weights for quality function
+    logger: Logger
+    device: str
 
     Returns
     -------

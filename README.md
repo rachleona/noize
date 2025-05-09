@@ -57,28 +57,22 @@ That's it! You are now ready to start using Noize :)
 **Usage**:
 
 ```console
-$ noize [OPTIONS] [FILEPATH] [OUTPUT_DIR]
+$ noize [OPTIONS] COMMAND [ARGS]...
 ```
-
-**Arguments**:
-
-* `[FILEPATH]`
-* `[OUTPUT_DIR]`
 
 **Options**:
 
-* `--config-file PATH`: absolute path to config file to use [default: &LT;PATH_TO_PACKAGE&GT;/config.json]
-* `--output-filename TEXT`: custom name for the protected output file [default: protected_&LT;FILEPATH&GT;]
-* `--cdpam TEXT`: whether to use the cdpam quality term or not [default: True]
-* `--avc / --no-avc`: whether to use the adaIN speaker encoder as part of perturbation generation [default: avc]
-* `--freevc / --no-freevc`: whether to use the freeVC speaker encoder as part of the perturbation generation [default: freevc]
-* `--yourtts / --no-yourtts`: whether to use the YourTTS speaker encoder as part of the perturbation generation [default: yourtts]
-* `--perturbation-level INTEGER`: hard limit on magnitude of protective noise, recommended level between 5 to 30 [default: 5]
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
 
-  
+**Commands**:
+
+* `protect`: Apply adversarial perturbation to produce...
+* `web`: Starts Flask server for web interface
+* `voices`: Manage saved target voices to be used in...
+
+
 <div align="right">
 
   
@@ -89,26 +83,88 @@ $ noize [OPTIONS] [FILEPATH] [OUTPUT_DIR]
 
 </div>
 
- **Additional Options for Development and Research Use**:
-* `--cdpam-weight INTEGER`: [default: 50]
-* `--distance-weight INTEGER`: [default: 2]
-* `--snr-weight FLOAT`: [default: 0.005]
-* `--perturbation-norm-weight FLOAT`: [default: 0.05]
-* `--frequency-weight FLOAT`: [default: 0.3]
-* `--avc-weight FLOAT`: [default: 1]
-* `--freevc-weight FLOAT`: [default: 1]
-* `--yourtts-weight FLOAT`: [default: 1]
-* `--learning-rate FLOAT`: [default: 0.02]
-* `--iterations INTEGER`: [default: 500]
-* `--logs / --no-logs`: [default: no-logs]
-* `--log-file TEXT`: [default: log.csv]
-* `--target TEXT` [default: None]
+#### `noize protect`
 
+Apply adversarial perturbation to produce protected audio file
+
+**Usage**:
+
+```console
+$ noize protect [OPTIONS] [FILEPATH] [OUTPUT_DIR]
+```
+
+**Arguments**:
+
+* `[FILEPATH]`: path to the audio file to apply protection on
+* `[OUTPUT_DIR]`: name of output directory, will be created if not already exists
+
+**Options**:
+
+* `--perturbation-level INTEGER`: values between 1-10, controls how strong the noise applied is  [default: 5]
+* `--target TEXT`: id of a saved voice for target-based optimisation
+* `--config-file PATH`: path to the config file, use official repo one by default
+* `--output-filename TEXT`: name of protected file, uses protected_&lt;filpath&gt; by default
+* `--avc / --no-avc`: whether to use adaptVC encoder in perturbation calculation  [default: avc]
+* `--freevc / --no-freevc`: whether to use FreeVC encoder in perturbation calculation  [default: freevc]
+* `--xtts / --no-xtts`: whether to use XTTS encoder in perturbation calculation  [default: xtts]
+* `--logs / --no-logs`: whether to log intermediate loss values  [default: no-logs]
+* `--log-file TEXT`: name of log file is logs are requested  [default: log.csv]
+* `--resource-log PATH`: name of resource log file if logs are requested
+* `--learning-rate FLOAT`: learning rate to use for optimisation process  [default: 0.02]
+* `--iterations INTEGER`: optimisation iterations (per audio segment)  [default: 300]
+* `--distance-weight FLOAT`: weight used in loss functions  [default: 2]
+* `--snr-weight FLOAT`: weight used in loss functions  [default: 0.025]
+* `--perturbation-norm-weight FLOAT`: weight used in loss functions  [default: 0.25]
+* `--frequency-weight FLOAT`: weight used in loss functions  [default: 1.5]
+* `--avc-weight FLOAT`: weight used in loss functions  [default: 25]
+* `--freevc-weight FLOAT`: weight used in loss functions  [default: 25]
+* `--xtts-weight FLOAT`: weight used in loss functions  [default: 25]
+* `--help`: Show this message and exit.
+
+#### `noize web`
+
+Starts Flask server for web interface
+
+**Usage**:
+
+```console
+$ noize web [OPTIONS]
+```
+
+**Options**:
+
+* `--port INTEGER`: port for server to listen  [default: 5000]
+* `--debug / --no-debug`: whether to start server in debug mode  [default: no-debug]
+* `--help`: Show this message and exit.
+
+#### `noize voices`
+
+Manage saved target voices to be used in protection application
+
+**Usage**:
+
+```console
+$ noize voices [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `list`: Lists the ids of all saved voices that can...
+* `play`: Plays 10s of the reference clip given for...
+* `add`: Add a new saved voice for use as...
+* `reset`: Recalculates embeddings for a saved voice
+* `resetall`: Recalculates embeddings for all saved voices
+* `delete`: Deletes a saved voice from voice library
+  
 
 ### Python
 Example usage in python:
 ```py
-from rachleona_noize.main import main as noize
+from rachleona_noize.cli.main import protect as noize
 noize("/path/to/audio.wav", "outputs/dir", output_filename="protected/audio.wav", perturbation_level=10)
 ```
 All options available for the CLI are also accessible on Python!
@@ -130,7 +186,7 @@ This project was created with several key project as reference and includes many
 - Shan et al. for creating [Glaze][glaze] and inspiring this project
 - Yu et al. who were behind the [AntiFake project][antifake] which Noize is heavily based on
 - Qin et al. who created the [OpenVoice framework][openvoice], which is a core part of Noize
-- Chou et al. for their work on [adaIN][avc]
+- Chou et al. for their work on [adaptVC][avc]
 - and contributors to the [Coqui TTS library][coqui_tts], which was a great resource during the development of this project
 
 
